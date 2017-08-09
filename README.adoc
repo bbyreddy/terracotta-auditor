@@ -1,0 +1,20 @@
+= Auditor
+
+The Auditor is a tool to verify integrity of systems of records.
+
+== How to use
+
+There are two fundamental pieces: the *Journal* and the *Verifier*.
+
+=== Journal
+
+The journal is meant to be used by an application exercising the system of records under test.
+Every single operation applied onto the system of records must be logged into the journal to
+be analyzed later on by the Verifier.
+
+=== Verifier
+
+The Verifier reads back the data logged by the journal then re-applies the operations that were
+executed against the system of records in the order they happened. When multiple operations did happen
+concurrently, the Verifier figures out the potentially correct orders and carry on with potentially
+multiple execution branches. As it goes on, it collects all the integrity errors it finds.
