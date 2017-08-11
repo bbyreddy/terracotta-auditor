@@ -81,12 +81,18 @@ public class VerifierTest {
       Set<RecordValue> recordValues = results.get("1");
       assertThat(recordValues.size(), is(2));
       Iterator<RecordValue> it = recordValues.iterator();
-      RecordValue absent = it.next();
-      assertThat(absent.isUnknown(), is(false));
-      assertThat(absent.isAbsent(), is(true));
-      RecordValue unknown = it.next();
-      assertThat(unknown.isUnknown(), is(true));
-      assertThat(unknown.isAbsent(), is(false));
+      RecordValue recordValue = it.next();
+      if (recordValue.isAbsent()) {
+        assertThat(recordValue.isUnknown(), is(false));
+        recordValue = it.next();
+        assertThat(recordValue.isAbsent(), is(false));
+        assertThat(recordValue.isUnknown(), is(true));
+      } else {
+        assertThat(recordValue.isUnknown(), is(true));
+        recordValue = it.next();
+        assertThat(recordValue.isAbsent(), is(true));
+        assertThat(recordValue.isUnknown(), is(false));
+      }
       return Collections.emptyList();
     });
     assertThat(errors.size(), is(1));
