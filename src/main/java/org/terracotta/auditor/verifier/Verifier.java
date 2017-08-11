@@ -22,7 +22,9 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.Reader;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,14 +35,22 @@ public class Verifier {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(Verifier.class);
 
-  private final File journalFile;
+  private final Reader journalReader;
   private final int windowSize;
   private final Function<String, Operation> operationParser;
 
   public Verifier(File journalFile, int windowSize, Function<String, Operation> operationParser) throws IOException {
-    this.journalFile = journalFile;
+    this(new FileReader(journalFile), windowSize, operationParser);
+  }
+
+  public Verifier(Reader journalReader, int windowSize, Function<String, Operation> operationParser) throws IOException {
+    this.journalReader = journalReader;
     this.windowSize = windowSize;
     this.operationParser = operationParser;
+  }
+
+  public List<String> verify() {
+    return verify((x) -> Collections.emptyList());
   }
 
   public List<String> verify(Function<Map<String, Set<RecordValue>>, List<String>> extraCheck) {
@@ -50,7 +60,7 @@ public class Verifier {
       long lineCount = 0L;
       GlobalTimeline timeline = new GlobalTimeline(windowSize);
 
-      try (BufferedReader br = new BufferedReader(new FileReader(journalFile))) {
+      try (BufferedReader br = new BufferedReader(journalReader)) {
         while (true) {
           String line = br.readLine();
           if (line == null) {
