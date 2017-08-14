@@ -15,15 +15,12 @@
  */
 package org.terracotta.auditor.verifier;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public class GlobalTimeline {
   private final int maxSize;
-  private final List<KeyTimeline> timelineList = new ArrayList<>();
   private final Map<String, KeyTimeline> timelineMap = new HashMap<>();
   private int size = 0;
 
@@ -40,7 +37,6 @@ public class GlobalTimeline {
     if (timeline == null) {
       timeline = new KeyTimeline(operation);
       timelineMap.put(operation.getKey(), timeline);
-      timelineList.add(timeline);
     } else {
       timeline.add(operation);
     }
@@ -60,7 +56,7 @@ public class GlobalTimeline {
     KeyTimeline bestTimeline = null;
 
     // look for the timeline with the most ops in it
-    for (KeyTimeline timeline : timelineList) {
+    for (KeyTimeline timeline : timelineMap.values()) {
       if (!timeline.isEmpty()) {
         if (bestTimeline == null) {
           bestTimeline = timeline;
@@ -84,7 +80,7 @@ public class GlobalTimeline {
 
   Map<String, Set<RecordValue>> getResults() {
     Map<String, Set<RecordValue>> result = new HashMap<>();
-    for (KeyTimeline keyTimeline : timelineList) {
+    for (KeyTimeline keyTimeline : timelineMap.values()) {
       String key = keyTimeline.getKey();
       Set<RecordValue> possibleValuesAtHead = keyTimeline.getPossibleValuesAtHead();
       result.put(key, possibleValuesAtHead);
