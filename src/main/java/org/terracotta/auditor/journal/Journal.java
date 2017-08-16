@@ -15,8 +15,6 @@
  */
 package org.terracotta.auditor.journal;
 
-import org.terracotta.auditor.verifier.Operation;
-
 /**
  * A journal must provide a thread-safe storage that can later be re-read, akin to a write-ahead log except
  * that persistence and crash-safety are both optional.

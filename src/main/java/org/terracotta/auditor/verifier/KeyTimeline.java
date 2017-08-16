@@ -16,23 +16,20 @@
 package org.terracotta.auditor.verifier;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
 public class KeyTimeline {
 
-  private final List<OperationGroup> sortedOperationGroups = new ArrayList<>();
-  private final Set<RecordValue> possibleValuesAtHead = new HashSet<>();
+  private final List<KeyOperationGroup> sortedOperationGroups = new ArrayList<>();
   private final String key;
   private long notBeforeTs = Long.MIN_VALUE;
   private boolean activateNotBeforeCheck = false;
 
-  public KeyTimeline(Operation operation) {
-    this.possibleValuesAtHead.add(RecordValue.ABSENT);
+  public KeyTimeline(KeyOperation operation) {
     this.key = operation.getKey();
-    OperationGroup operationGroup = new OperationGroup(operation);
+    KeyOperationGroup operationGroup = new KeyOperationGroup(operation);
     this.sortedOperationGroups.add(operationGroup);
     this.notBeforeTs = operationGroup.endTS();
   }
@@ -41,7 +38,7 @@ public class KeyTimeline {
     return key;
   }
 
-  public void add(Operation operation) {
+  public void add(KeyOperation operation) {
     if (!operation.getKey().equals(key)) {
       throw new IllegalArgumentException("Operation key does not mach : " + operation.getKey() + " - should be : " + key);
     }
@@ -56,16 +53,16 @@ public class KeyTimeline {
     //TODO: the potential of perf optimization of the following loop is immense
     // hopefully, this happens so rarely that this does not matter
     for (int i = 0; i < sortedOperationGroups.size(); i++) {
-      OperationGroup operationGroup = sortedOperationGroups.get(i);
+      KeyOperationGroup operationGroup = sortedOperationGroups.get(i);
       if (operation.getStartTS() <= operationGroup.endTS()) {
         operationGroup.add(operation);
         if (sortedOperationGroups.size() > i + 1) {
           // all operations after the indexed one may overlap with it, so they must be re-added to make sure they end up in the right group
-          List<OperationGroup> endOfList = sortedOperationGroups.subList(i + 1, sortedOperationGroups.size());
-          List<OperationGroup> toReprocess = new ArrayList<>(endOfList);
+          List<KeyOperationGroup> endOfList = sortedOperationGroups.subList(i + 1, sortedOperationGroups.size());
+          List<KeyOperationGroup> toReprocess = new ArrayList<>(endOfList);
           endOfList.clear();
-          for (OperationGroup og : toReprocess) {
-            for (Operation o : og.getOperations()) {
+          for (KeyOperationGroup og : toReprocess) {
+            for (KeyOperation o : og.getOperations()) {
               add(o);
             }
           }
@@ -75,12 +72,12 @@ public class KeyTimeline {
     }
 
     // either this is the 1st operation, or this timeline got emptied and is now being refilled
-    OperationGroup operationGroup = new OperationGroup(operation);
+    KeyOperationGroup operationGroup = new KeyOperationGroup(operation);
     sortedOperationGroups.add(operationGroup);
   }
 
-  public int step() throws VerificationException {
-    OperationGroup operationGroup = sortedOperationGroups.remove(0);
+  public StepResult step(Set<RecordValue> possibleValuesAtHead) throws VerificationException {
+    KeyOperationGroup operationGroup = sortedOperationGroups.remove(0);
 
     Set<RecordValue> allNewPossibleValues = new HashSet<>();
     for (RecordValue possibleValue : possibleValuesAtHead) {
@@ -94,14 +91,13 @@ public class KeyTimeline {
       allNewPossibleValues.add(RecordValue.UNKNOWN_PRESENT);
     }
 
-    possibleValuesAtHead.clear();
-    possibleValuesAtHead.addAll(allNewPossibleValues);
     activateNotBeforeCheck = true;
     notBeforeTs = operationGroup.endTS();
+    StepResult stepResult = new StepResult(operationGroup.startTS(), operationGroup.endTS(), allNewPossibleValues, operationGroup.size());
     if (error != null) {
-      throw new VerificationException(error, operationGroup.size());
+      throw new VerificationException(error, stepResult);
     }
-    return operationGroup.size();
+    return stepResult;
   }
 
   boolean isEmpty() {
@@ -110,9 +106,5 @@ public class KeyTimeline {
 
   int size() {
     return sortedOperationGroups.size();
-  }
-
-  public Set<RecordValue> getPossibleValuesAtHead() {
-    return Collections.unmodifiableSet(possibleValuesAtHead);
   }
 }

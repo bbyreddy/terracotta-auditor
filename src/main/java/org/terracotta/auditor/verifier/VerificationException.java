@@ -17,14 +17,14 @@ package org.terracotta.auditor.verifier;
 
 public class VerificationException extends Exception {
 
-  private final int operationCount;
+  private final StepResult stepResult;
 
-  public VerificationException(String msg, int operationCount) {
+  public VerificationException(String msg, StepResult stepResult) {
     super(msg);
-    this.operationCount = operationCount;
+    this.stepResult = stepResult;
   }
 
-  public int getOperationCount() {
-    return operationCount;
+  public StepResult getStepResult() {
+    return stepResult;
   }
 }

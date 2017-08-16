@@ -16,13 +16,13 @@
 package org.terracotta.auditor.operations;
 
 import org.terracotta.auditor.verifier.Evaluation;
-import org.terracotta.auditor.verifier.Operation;
+import org.terracotta.auditor.verifier.KeyOperation;
 import org.terracotta.auditor.verifier.RecordValue;
 
 /**
  * @author Ludovic Orban
  */
-public class Add extends Operation {
+public class Add extends KeyOperation {
   public Add(long startTS, long endTS, String key, String result) {
     super("Add", startTS, endTS, key, result);
   }

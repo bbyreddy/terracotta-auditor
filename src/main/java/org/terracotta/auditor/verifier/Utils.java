@@ -15,33 +15,22 @@
  */
 package org.terracotta.auditor.verifier;
 
-public abstract class Operation {
+import java.util.Comparator;
 
-  private final String name;
-  private final long startTS;
-  private final long endTS;
-  private final String result;
+public class Utils {
 
-  protected Operation(String name, long startTS, long endTS, String result) {
-    this.name = name;
-    this.startTS = startTS;
-    this.endTS = endTS;
-    this.result = result;
+  public static Comparator<Operation> operationComparator() {
+    return (o1, o2) -> {
+      long o1StartTS = o1.getStartTS();
+      long o2StartTS = o2.getStartTS();
+      if (o1StartTS < o2StartTS) {
+        return -1;
+      } else if (o1StartTS > o2StartTS) {
+        return 1;
+      } else {
+        return 0;
+      }
+    };
   }
 
-  public String getName() {
-    return name;
-  }
-
-  public long getStartTS() {
-    return startTS;
-  }
-
-  public long getEndTS() {
-    return endTS;
-  }
-
-  public String getResult() {
-    return result;
-  }
 }

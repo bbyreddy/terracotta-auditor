@@ -15,13 +15,17 @@
  */
 package org.terracotta.auditor.verifier;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 public class GlobalTimeline {
   private final int maxSize;
   private final Map<String, KeyTimeline> timelineMap = new HashMap<>();
+  private final List<NonKeyOperation> nonKeyOperations = new ArrayList<>();
+  private final SorHistory sorHistory = new SorHistory();
   private int size = 0;
 
   public GlobalTimeline(int maxSize) {
@@ -29,6 +33,19 @@ public class GlobalTimeline {
   }
 
   public void add(Operation operation) {
+    if (operation instanceof KeyOperation) {
+      add(((KeyOperation) operation));
+    } else {
+      add(((NonKeyOperation) operation));
+    }
+  }
+
+  private void add(NonKeyOperation operation) {
+    nonKeyOperations.add(operation);
+    nonKeyOperations.sort(Utils.operationComparator());
+  }
+
+  private void add(KeyOperation operation) {
     if (remainingCapacity() == 0) {
       throw new IllegalStateException("Timeline full with " + maxSize + " operations");
     }
@@ -71,20 +88,18 @@ public class GlobalTimeline {
     }
 
     try {
-      size -= bestTimeline.step();
+      StepResult step = bestTimeline.step(sorHistory.getHeadOf(bestTimeline.getKey()));
+      size -= step.getStepSize();
+      sorHistory.add(bestTimeline.getKey(), step.getStartTs(), step.getEndTs(), step.getPossibleValues());
     } catch (VerificationException ve) {
-      size -= ve.getOperationCount();
+      StepResult step = ve.getStepResult();
+      size -= step.getStepSize();
+      sorHistory.add(bestTimeline.getKey(), step.getStartTs(), step.getEndTs(), step.getPossibleValues());
       throw ve;
     }
   }
 
   Map<String, Set<RecordValue>> getResults() {
-    Map<String, Set<RecordValue>> result = new HashMap<>();
-    for (KeyTimeline keyTimeline : timelineMap.values()) {
-      String key = keyTimeline.getKey();
-      Set<RecordValue> possibleValuesAtHead = keyTimeline.getPossibleValuesAtHead();
-      result.put(key, possibleValuesAtHead);
-    }
-    return result;
+    return sorHistory.getHeads();
   }
 }
