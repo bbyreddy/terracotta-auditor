@@ -78,7 +78,7 @@ public class GlobalTimeline {
     // first check if some n-key operation can execute
     if (!nonKeyOperations.isEmpty()) {
       NonKeyOperation nonKeyOperation = nonKeyOperations.get(0);
-      if (sorHistory.containsEverythingBetween(nonKeyOperation.getStartTS(), nonKeyOperation.getEndTS()) || size == nonKeyOperations.size()) {
+      if (sorHistory.width() == timelineMap.size() && sorHistory.containsEverythingUpTo(nonKeyOperation.getEndTS())) {
         String error = nonKeyOperation.verifyAndReplay(sorHistory);
         nonKeyOperations.remove(0);
         size--;
@@ -87,11 +87,6 @@ public class GlobalTimeline {
         }
       }
     }
-
-    if (size == 0) {
-      return;
-    }
-
 
     KeyTimeline bestTimeline = null;
 
@@ -104,6 +99,10 @@ public class GlobalTimeline {
           bestTimeline = timeline;
         }
       }
+    }
+
+    if (bestTimeline == null) {
+      return;
     }
 
     try {

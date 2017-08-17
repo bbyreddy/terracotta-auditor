@@ -20,6 +20,9 @@ import org.terracotta.auditor.operations.Operations;
 import org.terracotta.auditor.verifier.RecordValue;
 import org.terracotta.auditor.verifier.Verifier;
 
+import java.io.File;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.util.Collections;
 import java.util.Iterator;
@@ -194,6 +197,18 @@ public class VerifierTest {
 
       List<String> errors = verifier.verify();
       assertThat(errors.size(), is(1));
+    }
+  }
+
+  @Test
+  public void integrity() throws Exception {
+    try (InputStream is = getClass().getClassLoader().getResourceAsStream("nonPersistent-journal.txt")) {
+      Verifier verifier = new Verifier(new InputStreamReader(is), 20000, Operations.parser());
+
+      List<String> errors = verifier.verify();
+      errors.forEach(System.out::println);
+
+      assertThat(errors, empty());
     }
   }
 }

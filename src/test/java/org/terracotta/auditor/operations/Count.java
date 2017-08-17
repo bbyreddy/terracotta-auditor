@@ -64,7 +64,7 @@ public class Count extends NonKeyOperation {
     if (result >= minPossible && result <= maxPossible) {
       return null;
     } else {
-      return "Count error: min possible is " + minPossible + " and max possible is " + maxPossible + " but journal said : " + result;
+      return "Count error at startTs=" + getStartTS() + ": min possible is " + minPossible + " and max possible is " + maxPossible + " but journal said : " + result;
     }
   }
 }

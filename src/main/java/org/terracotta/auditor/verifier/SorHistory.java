@@ -83,7 +83,7 @@ public class SorHistory {
     return result;
   }
 
-  public boolean containsEverythingBetween(long beforeTs, long afterTs) {
+  public boolean containsEverythingUpTo(long afterTs) {
     for (SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap : history.values()) {
       for (Interval interval : intervalSetSortedMap.keySet()) {
         if (interval.endTs > afterTs) {
@@ -111,6 +111,10 @@ public class SorHistory {
     }
 
     return result;
+  }
+
+  public int width() {
+    return history.size();
   }
 
 
