@@ -43,6 +43,7 @@ public class GlobalTimeline {
   private void add(NonKeyOperation operation) {
     nonKeyOperations.add(operation);
     nonKeyOperations.sort(Utils.operationComparator());
+    size++;
   }
 
   private void add(KeyOperation operation) {
@@ -70,6 +71,28 @@ public class GlobalTimeline {
   }
 
   public void step() throws VerificationException {
+    if (size == 0) {
+      throw new IllegalStateException("Timeline is empty");
+    }
+
+    // first check if some n-key operation can execute
+    if (!nonKeyOperations.isEmpty()) {
+      NonKeyOperation nonKeyOperation = nonKeyOperations.get(0);
+      if (sorHistory.containsEverythingBetween(nonKeyOperation.getStartTS(), nonKeyOperation.getEndTS()) || size == nonKeyOperations.size()) {
+        String error = nonKeyOperation.verifyAndReplay(sorHistory);
+        nonKeyOperations.remove(0);
+        size--;
+        if (error != null) {
+          throw new VerificationException(error, null);
+        }
+      }
+    }
+
+    if (size == 0) {
+      return;
+    }
+
+
     KeyTimeline bestTimeline = null;
 
     // look for the timeline with the most ops in it
@@ -81,10 +104,6 @@ public class GlobalTimeline {
           bestTimeline = timeline;
         }
       }
-    }
-
-    if (bestTimeline == null) {
-      throw new IllegalStateException("Timeline is empty");
     }
 
     try {

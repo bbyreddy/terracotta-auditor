@@ -26,6 +26,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
 
@@ -98,4 +99,101 @@ public class VerifierTest {
     assertThat(errors.size(), is(1));
   }
 
+  @Test
+  public void nonKeyOperationWithoutOverlap_1() throws Exception {
+    String journalContents =
+            "1;2;Add;1;true\n" +
+            "1;2;Delete;1;true\n" +
+            "3;4;Count;;0";
+
+    Verifier verifier = new Verifier(new StringReader(journalContents), 10, Operations.parser());
+
+    List<String> errors = verifier.verify();
+    assertThat(errors, empty());
+  }
+
+  @Test
+  public void nonKeyOperationWithoutOverlap_2() throws Exception {
+    String journalContents =
+            "1;2;Add;1;true\n" +
+            "1;2;Delete;1;true\n" +
+            "3;4;Count;;1";
+
+    Verifier verifier = new Verifier(new StringReader(journalContents), 10, Operations.parser());
+
+    List<String> errors = verifier.verify();
+    assertThat(errors.size(), is(1));
+  }
+
+  @Test
+  public void nonKeyOperationWithoutOverlap_3() throws Exception {
+    String journalContents =
+            "1;2;Add;1;true\n" +
+            "1;2;Add;1;false\n" +
+            "3;4;Count;;1";
+
+    Verifier verifier = new Verifier(new StringReader(journalContents), 10, Operations.parser());
+
+    List<String> errors = verifier.verify();
+    assertThat(errors, empty());
+  }
+
+  @Test
+  public void nonKeyOperationWithoutOverlap_4() throws Exception {
+    String journalContents =
+            "1;2;Add;1;false\n" +
+            "1;2;Add;1;true\n" +
+            "3;4;Count;;1";
+
+    Verifier verifier = new Verifier(new StringReader(journalContents), 10, Operations.parser());
+
+    List<String> errors = verifier.verify();
+    assertThat(errors, empty());
+  }
+
+  @Test
+  public void nonKeyOperationWithoutOverlap_99() throws Exception {
+    {
+      String journalContents =
+                  "1;1;Add;1;true\n" +
+                  "2;2;Add;1;false\n" +
+                  "1;1;Add;2;true\n" +
+                  "2;2;Delete;2;true\n" +
+                  "3;3;Delete;1;true\n" +
+                  "3;3;Count;;1";
+
+      Verifier verifier = new Verifier(new StringReader(journalContents), 10, Operations.parser());
+
+      List<String> errors = verifier.verify();
+      assertThat(errors, empty());
+    }
+    {
+      String journalContents =
+                  "1;1;Add;1;true\n" +
+                  "2;2;Add;1;false\n" +
+                  "1;1;Add;2;true\n" +
+                  "2;2;Delete;2;true\n" +
+                  "3;3;Delete;1;true\n" +
+                  "3;3;Count;;0";
+
+      Verifier verifier = new Verifier(new StringReader(journalContents), 10, Operations.parser());
+
+      List<String> errors = verifier.verify();
+      assertThat(errors, empty());
+    }
+    {
+      String journalContents =
+                  "1;1;Add;1;true\n" +
+                  "2;2;Add;1;false\n" +
+                  "1;1;Add;2;true\n" +
+                  "2;2;Delete;2;true\n" +
+                  "3;3;Delete;1;true\n" +
+                  "3;3;Count;;2";
+
+      Verifier verifier = new Verifier(new StringReader(journalContents), 10, Operations.parser());
+
+      List<String> errors = verifier.verify();
+      assertThat(errors.size(), is(1));
+    }
+  }
 }

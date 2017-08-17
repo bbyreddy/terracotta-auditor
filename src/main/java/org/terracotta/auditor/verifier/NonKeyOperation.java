@@ -21,7 +21,7 @@ public abstract class NonKeyOperation extends Operation {
     super(name, startTS, endTS, result);
   }
 
-  public abstract Evaluation verifyAndReplay(SorHistory from);
+  public abstract String verifyAndReplay(SorHistory from);
 
   @Override
   public String toString() {

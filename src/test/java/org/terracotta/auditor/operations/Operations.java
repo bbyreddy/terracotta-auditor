@@ -42,6 +42,8 @@ public class Operations {
           return new Delete(startTS, endTS, key, result);
         case "Update":
           return new Update(startTS, endTS, key, result);
+        case "Count":
+          return new Count(startTS, endTS, result);
         default:
           throw new UnsupportedOperationException("Unsupported operation : " + name);
       }

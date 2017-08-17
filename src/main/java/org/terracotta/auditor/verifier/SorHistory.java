@@ -64,12 +64,53 @@ public class SorHistory {
     return result;
   }
 
+  public Map<String, Set<RecordValue>> getAt(long ts) {
+    Map<String, Set<RecordValue>> result = new HashMap<>();
+
+    for (Map.Entry<String, SortedMap<Interval, Set<RecordValue>>> stringSortedMapEntry : history.entrySet()) {
+      String key = stringSortedMapEntry.getKey();
+      SortedMap<Interval, Set<RecordValue>> value = stringSortedMapEntry.getValue();
+      for (Map.Entry<Interval, Set<RecordValue>> intervalSetEntry : value.entrySet()) {
+        Interval interval = intervalSetEntry.getKey();
+        Set<RecordValue> values = intervalSetEntry.getValue();
+
+        if (ts > interval.endTs) {
+          result.put(key, values);
+        }
+      }
+    }
+
+    return result;
+  }
+
   public boolean containsEverythingBetween(long beforeTs, long afterTs) {
-    throw new UnsupportedOperationException();
+    for (SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap : history.values()) {
+      for (Interval interval : intervalSetSortedMap.keySet()) {
+        if (interval.endTs > afterTs) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   public Map<String, Set<RecordValue>> getEverythingBetween(long beforeTs, long afterTs) {
-    throw new UnsupportedOperationException();
+    Map<String, Set<RecordValue>> result = new HashMap<>();
+
+    for (Map.Entry<String, SortedMap<Interval, Set<RecordValue>>> stringSortedMapEntry : history.entrySet()) {
+      String key = stringSortedMapEntry.getKey();
+      SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap = stringSortedMapEntry.getValue();
+
+      for (Map.Entry<Interval, Set<RecordValue>> intervalSetEntry : intervalSetSortedMap.entrySet()) {
+        Interval interval = intervalSetEntry.getKey();
+        Set<RecordValue> value = intervalSetEntry.getValue();
+        if (interval.startTs >= beforeTs && interval.endTs <= afterTs) {
+          result.put(key, value);
+        }
+      }
+    }
+
+    return result;
   }
 
 
