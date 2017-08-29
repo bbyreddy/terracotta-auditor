@@ -76,16 +76,15 @@ public class GlobalTimeline {
     }
 
     // first check if some n-key operation can execute
-    if (!nonKeyOperations.isEmpty()) {
+    if (onlyNonKeyOperationsRemain()) {
       NonKeyOperation nonKeyOperation = nonKeyOperations.get(0);
-      if (sorHistory.width() == timelineMap.size() && sorHistory.containsEverythingUpTo(nonKeyOperation.getEndTS())) {
-        String error = nonKeyOperation.verifyAndReplay(sorHistory);
-        nonKeyOperations.remove(0);
-        size--;
-        if (error != null) {
-          throw new VerificationException(error, null);
-        }
+      String error = nonKeyOperation.verifyAndReplay(sorHistory);
+      nonKeyOperations.remove(0);
+      size--;
+      if (error != null) {
+        throw new VerificationException(error, null);
       }
+      return;
     }
 
     KeyTimeline bestTimeline = null;
@@ -102,7 +101,7 @@ public class GlobalTimeline {
     }
 
     if (bestTimeline == null) {
-      return;
+      throw new RuntimeException("Step failed to execute anything, next remaining non-key operation ends TS = " + nonKeyOperations.get(0).getEndTS());
     }
 
     try {
@@ -115,6 +114,10 @@ public class GlobalTimeline {
       sorHistory.add(bestTimeline.getKey(), step.getStartTs(), step.getEndTs(), step.getPossibleValues());
       throw ve;
     }
+  }
+
+  private boolean onlyNonKeyOperationsRemain() {
+    return nonKeyOperations.size() == size;
   }
 
   Map<String, Set<RecordValue>> getResults() {

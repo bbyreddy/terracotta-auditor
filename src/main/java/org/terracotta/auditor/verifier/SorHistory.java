@@ -27,7 +27,7 @@ import java.util.TreeMap;
  */
 public class SorHistory {
 
-  private Map<String, SortedMap<Interval, Set<RecordValue>>> history = new HashMap<>();
+  private final Map<String, SortedMap<Interval, Set<RecordValue>>> history = new HashMap<>();
 
   public void add(String key, long beforeTs, long afterTs, Set<RecordValue> values) {
     SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap = history.get(key);
@@ -80,21 +80,12 @@ public class SorHistory {
       }
     }
 
+    result.entrySet().removeIf(next -> next.getValue().size() == 1 && next.getValue().iterator().next().isAbsent());
+
     return result;
   }
 
-  public boolean containsEverythingUpTo(long afterTs) {
-    for (SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap : history.values()) {
-      for (Interval interval : intervalSetSortedMap.keySet()) {
-        if (interval.endTs > afterTs) {
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
-  public Map<String, Set<RecordValue>> getEverythingBetween(long beforeTs, long afterTs) {
+  public Map<String, Set<RecordValue>> getEverythingOverlapping(long startTs, long afterTs) {
     Map<String, Set<RecordValue>> result = new HashMap<>();
 
     for (Map.Entry<String, SortedMap<Interval, Set<RecordValue>>> stringSortedMapEntry : history.entrySet()) {
@@ -104,17 +95,16 @@ public class SorHistory {
       for (Map.Entry<Interval, Set<RecordValue>> intervalSetEntry : intervalSetSortedMap.entrySet()) {
         Interval interval = intervalSetEntry.getKey();
         Set<RecordValue> value = intervalSetEntry.getValue();
-        if (interval.startTs >= beforeTs && interval.endTs <= afterTs) {
-          result.put(key, value);
+        if (interval.startTs <= afterTs && interval.endTs >= startTs) {
+          if (result.putIfAbsent(key, value) != null) {
+            Set<RecordValue> recordValues = result.get(key);
+            recordValues.addAll(value);
+          }
         }
       }
     }
 
     return result;
-  }
-
-  public int width() {
-    return history.size();
   }
 
 
@@ -143,13 +133,7 @@ public class SorHistory {
 
     @Override
     public int compareTo(Interval other) {
-      if (endTs > other.endTs) {
-        return 1;
-      } else if (endTs < other.endTs) {
-        return -1;
-      } else {
-        return 0;
-      }
+      return Long.compare(endTs, other.endTs);
     }
   }
 

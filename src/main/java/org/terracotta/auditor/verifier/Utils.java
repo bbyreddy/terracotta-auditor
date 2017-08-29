@@ -23,13 +23,7 @@ public class Utils {
     return (o1, o2) -> {
       long o1StartTS = o1.getStartTS();
       long o2StartTS = o2.getStartTS();
-      if (o1StartTS < o2StartTS) {
-        return -1;
-      } else if (o1StartTS > o2StartTS) {
-        return 1;
-      } else {
-        return 0;
-      }
+      return Long.compare(o1StartTS, o2StartTS);
     };
   }
 

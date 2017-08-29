@@ -25,7 +25,7 @@ public class Count extends NonKeyOperation {
     int minPossible = 0;
     int maxPossible = 0;
 
-    Map<String, Set<RecordValue>> firmValues = from.getAt(getEndTS());
+    Map<String, Set<RecordValue>> firmValues = from.getAt(getStartTS());
     for (Set<RecordValue> recordValues : firmValues.values()) {
       boolean extraMin = !recordValues.isEmpty();
       boolean extraMax = false;
@@ -39,24 +39,37 @@ public class Count extends NonKeyOperation {
       if (extraMax) maxPossible++;
     }
 
+    int addToMin = 0;
+    int addToMax = 0;
 
-    Map<String, Set<RecordValue>> overlappingValues = from.getEverythingBetween(getStartTS(), getEndTS());
+    Map<String, Set<RecordValue>> overlappingValues = from.getEverythingOverlapping(getStartTS(), getEndTS());
     for (Map.Entry<String, Set<RecordValue>> stringSetEntry : overlappingValues.entrySet()) {
       String key = stringSetEntry.getKey();
       Set<RecordValue> firmVals = firmValues.get(key);
       Set<RecordValue> overlappingVals = stringSetEntry.getValue();
 
-      for (RecordValue firmVal : firmVals) {
-        for (RecordValue overlappingVal : overlappingVals) {
-          if (firmVal.isAbsent() && !overlappingVal.isAbsent()) {
-            maxPossible++;
+      if (firmVals != null) {
+        for (RecordValue firmVal : firmVals) {
+          for (RecordValue overlappingVal : overlappingVals) {
+            if (firmVal.isAbsent() && !overlappingVal.isAbsent()) {
+              addToMax++;
+            }
+            if (!firmVal.isAbsent() && overlappingVal.isAbsent()) {
+              addToMin--;
+            }
           }
-          if (!firmVal.isAbsent() && overlappingVal.isAbsent()) {
-            minPossible--;
+        }
+      } else {
+        for (RecordValue overlappingVal : overlappingVals) {
+          if (!overlappingVal.isAbsent()) {
+            addToMax++;
           }
         }
       }
     }
+
+    minPossible += addToMin;
+    maxPossible += addToMax;
 
 
     int result = Integer.parseInt(getResult());
