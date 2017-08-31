@@ -204,7 +204,7 @@ public class VerifierTest {
   @Ignore
   public void integrity() throws Exception {
     try (InputStream is = getClass().getClassLoader().getResourceAsStream("nonPersistent-journal.txt")) {
-      Verifier verifier = new Verifier(new InputStreamReader(is), 20000, Operations.parser());
+      Verifier verifier = new Verifier(new InputStreamReader(is), 1_000_000, Operations.parser());
 
       List<String> errors = verifier.verify();
       errors.forEach(System.out::println);

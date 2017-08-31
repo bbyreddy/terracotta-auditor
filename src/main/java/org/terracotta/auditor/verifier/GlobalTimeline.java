@@ -25,6 +25,7 @@ public class GlobalTimeline {
   private final int maxSize;
   private final Map<String, KeyTimeline> timelineMap = new HashMap<>();
   private final List<NonKeyOperation> nonKeyOperations = new ArrayList<>();
+  private boolean nonKeyOperationsSorted = false;
   private final SorHistory sorHistory = new SorHistory();
   private int size = 0;
 
@@ -42,8 +43,8 @@ public class GlobalTimeline {
 
   private void add(NonKeyOperation operation) {
     nonKeyOperations.add(operation);
-    nonKeyOperations.sort(Utils.operationComparator());
     size++;
+    nonKeyOperationsSorted = false;
   }
 
   private void add(KeyOperation operation) {
@@ -77,10 +78,18 @@ public class GlobalTimeline {
 
     // first check if some n-key operation can execute
     if (onlyNonKeyOperationsRemain()) {
-      NonKeyOperation nonKeyOperation = nonKeyOperations.get(0);
+      if (!nonKeyOperationsSorted) {
+        nonKeyOperations.sort(Utils.operationComparator());
+        nonKeyOperationsSorted = true;
+      }
+
+      NonKeyOperation nonKeyOperation = nonKeyOperations.remove(0);
       String error = nonKeyOperation.verifyAndReplay(sorHistory);
-      nonKeyOperations.remove(0);
       size--;
+      if (!nonKeyOperations.isEmpty()) {
+        sorHistory.deleteUntil(nonKeyOperations.get(0).getStartTS());
+      }
+
       if (error != null) {
         throw new VerificationException(error, null);
       }

@@ -17,6 +17,7 @@ package org.terracotta.auditor.verifier;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
@@ -64,6 +65,29 @@ public class SorHistory {
     return result;
   }
 
+  public void deleteUntil(long ts) {
+    for (Map.Entry<String, SortedMap<Interval, Set<RecordValue>>> stringSortedMapEntry : history.entrySet()) {
+      SortedMap<Interval, Set<RecordValue>> value = stringSortedMapEntry.getValue();
+
+      Iterator<Map.Entry<Interval, Set<RecordValue>>> iterator = value.entrySet().iterator();
+      // delete everything before the arg TS, but the last value before that TS, hence save the last deleted one to re-add it
+      Map.Entry<Interval, Set<RecordValue>> lastEntry = null;
+      while (iterator.hasNext()) {
+        Map.Entry<Interval, Set<RecordValue>> next = iterator.next();
+        Interval interval = next.getKey();
+        if (interval.endTs < ts && iterator.hasNext()) {
+          lastEntry = next;
+          iterator.remove();
+        } else {
+          if (lastEntry != null) {
+            value.put(lastEntry.getKey(), lastEntry.getValue());
+          }
+          break;
+        }
+      }
+    }
+  }
+
   public Map<String, Set<RecordValue>> getAt(long ts) {
     Map<String, Set<RecordValue>> result = new HashMap<>();
 
@@ -74,9 +98,11 @@ public class SorHistory {
         Interval interval = intervalSetEntry.getKey();
         Set<RecordValue> values = intervalSetEntry.getValue();
 
-        if (ts > interval.endTs) {
-          result.put(key, values);
+        if (interval.endTs > ts) {
+          break;
         }
+
+        result.put(key, values);
       }
     }
 
@@ -95,11 +121,17 @@ public class SorHistory {
       for (Map.Entry<Interval, Set<RecordValue>> intervalSetEntry : intervalSetSortedMap.entrySet()) {
         Interval interval = intervalSetEntry.getKey();
         Set<RecordValue> value = intervalSetEntry.getValue();
-        if (interval.startTs <= afterTs && interval.endTs >= startTs) {
-          if (result.putIfAbsent(key, value) != null) {
-            Set<RecordValue> recordValues = result.get(key);
-            recordValues.addAll(value);
-          }
+
+        if (interval.endTs < startTs) {
+          continue;
+        }
+        if (interval.startTs > afterTs) {
+          break;
+        }
+
+        if (result.putIfAbsent(key, value) != null) {
+          Set<RecordValue> recordValues = result.get(key);
+          recordValues.addAll(value);
         }
       }
     }
