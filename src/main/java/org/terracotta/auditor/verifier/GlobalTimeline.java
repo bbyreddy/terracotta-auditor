@@ -84,14 +84,14 @@ public class GlobalTimeline {
     // first check if some n-key operation can execute
     if (onlyNonKeyOperationsRemain()) {
       if (!nonKeyOperationsSorted) {
-        LOGGER.info("CRUD verification done, now processing multi-key");
+        LOGGER.debug("CRUD verification done, now processing multi-key");
         nonKeyOperations.sort(Utils.operationComparator());
         nonKeyOperationsSorted = true;
       }
 
       NonKeyOperation nonKeyOperation = nonKeyOperations.remove(0);
       if (nonKeyOperations.size() % 1000 == 0) {
-        LOGGER.info("1000 less, left : " + nonKeyOperations.size() + " - " + sorHistory.averages());
+        LOGGER.debug("1000 less, left : " + nonKeyOperations.size() + " - " + sorHistory.averages());
       }
       String error = nonKeyOperation.verifyAndReplay(sorHistory);
       size--;
