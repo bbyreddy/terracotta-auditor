@@ -15,6 +15,9 @@
  */
 package org.terracotta.auditor.verifier;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -22,6 +25,8 @@ import java.util.Map;
 import java.util.Set;
 
 public class GlobalTimeline {
+  private static final Logger LOGGER = LoggerFactory.getLogger(GlobalTimeline.class);
+
   private final int maxSize;
   private final Map<String, KeyTimeline> timelineMap = new HashMap<>();
   private final List<NonKeyOperation> nonKeyOperations = new ArrayList<>();
@@ -79,11 +84,15 @@ public class GlobalTimeline {
     // first check if some n-key operation can execute
     if (onlyNonKeyOperationsRemain()) {
       if (!nonKeyOperationsSorted) {
+        LOGGER.info("CRUD verification done, now processing multi-key");
         nonKeyOperations.sort(Utils.operationComparator());
         nonKeyOperationsSorted = true;
       }
 
       NonKeyOperation nonKeyOperation = nonKeyOperations.remove(0);
+      if (nonKeyOperations.size() % 1000 == 0) {
+        LOGGER.info("1000 less, left : " + nonKeyOperations.size() + " - " + sorHistory.averages());
+      }
       String error = nonKeyOperation.verifyAndReplay(sorHistory);
       size--;
       if (!nonKeyOperations.isEmpty()) {
