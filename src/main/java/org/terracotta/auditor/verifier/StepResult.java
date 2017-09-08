@@ -15,33 +15,37 @@
  */
 package org.terracotta.auditor.verifier;
 
-public abstract class Operation {
+import java.util.Set;
 
-  private final String name;
-  private final long startTS;
-  private final long endTS;
-  private final String result;
+/**
+ * @author Ludovic Orban
+ */
+public class StepResult {
+  private final long startTs;
+  private final long endTs;
+  private final Set<RecordValue> possibleValues;
+  private final int stepSize;
 
-  protected Operation(String name, long startTS, long endTS, String result) {
-    this.name = name;
-    this.startTS = startTS;
-    this.endTS = endTS;
-    this.result = result;
+  public StepResult(long startTs, long endTs, Set<RecordValue> possibleValues, int stepSize) {
+    this.startTs = startTs;
+    this.endTs = endTs;
+    this.possibleValues = possibleValues;
+    this.stepSize = stepSize;
   }
 
-  public String getName() {
-    return name;
+  public long getStartTs() {
+    return startTs;
   }
 
-  public long getStartTS() {
-    return startTS;
+  public long getEndTs() {
+    return endTs;
   }
 
-  public long getEndTS() {
-    return endTS;
+  public Set<RecordValue> getPossibleValues() {
+    return possibleValues;
   }
 
-  public String getResult() {
-    return result;
+  public int getStepSize() {
+    return stepSize;
   }
 }

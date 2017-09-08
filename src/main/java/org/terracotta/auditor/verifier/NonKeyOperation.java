@@ -15,33 +15,16 @@
  */
 package org.terracotta.auditor.verifier;
 
-public abstract class Operation {
+public abstract class NonKeyOperation extends Operation {
 
-  private final String name;
-  private final long startTS;
-  private final long endTS;
-  private final String result;
-
-  protected Operation(String name, long startTS, long endTS, String result) {
-    this.name = name;
-    this.startTS = startTS;
-    this.endTS = endTS;
-    this.result = result;
+  protected NonKeyOperation(String name, long startTS, long endTS, String result) {
+    super(name, startTS, endTS, result);
   }
 
-  public String getName() {
-    return name;
-  }
+  public abstract String verifyAndReplay(SorHistory from);
 
-  public long getStartTS() {
-    return startTS;
-  }
-
-  public long getEndTS() {
-    return endTS;
-  }
-
-  public String getResult() {
-    return result;
+  @Override
+  public String toString() {
+    return getClass().getSimpleName() + " startTs=" + getStartTS() + " endsTS=" + getEndTS() + " result=" + getResult();
   }
 }

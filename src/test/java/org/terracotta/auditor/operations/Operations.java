@@ -36,6 +36,14 @@ public class Operations {
       switch (name) {
         case "Add":
           return new Add(startTS, endTS, key, result);
+        case "Get":
+          return new Get(startTS, endTS, key, result);
+        case "Delete":
+          return new Delete(startTS, endTS, key, result);
+        case "Update":
+          return new Update(startTS, endTS, key, result);
+        case "Count":
+          return new Count(startTS, endTS, result);
         default:
           throw new UnsupportedOperationException("Unsupported operation : " + name);
       }

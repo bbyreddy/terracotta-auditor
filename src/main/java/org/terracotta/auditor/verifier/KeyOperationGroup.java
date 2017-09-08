@@ -17,39 +17,35 @@ package org.terracotta.auditor.verifier;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class OperationGroup {
+public class KeyOperationGroup {
 
-  private final List<Operation> sortedOperations = new ArrayList<>();
+  private final List<KeyOperation> sortedOperations = new ArrayList<>();
+  private long startTS;
   private long endTS;
 
-  OperationGroup(Operation operation) {
+  KeyOperationGroup(KeyOperation operation) {
     this.sortedOperations.add(operation);
+    this.startTS = operation.getStartTS();
     this.endTS = operation.getEndTS();
   }
 
-  public List<Operation> getOperations() {
+  public List<KeyOperation> getOperations() {
     return sortedOperations;
   }
 
-  public void add(Operation operation) {
+  public void add(KeyOperation operation) {
     sortedOperations.add(operation);
-    sortedOperations.sort((o1, o2) -> {
-      long o1StartTS = o1.getStartTS();
-      long o2StartTS = o2.getStartTS();
-      if (o1StartTS < o2StartTS) {
-        return -1;
-      } else if (o1StartTS > o2StartTS) {
-        return 1;
-      } else {
-        return 0;
-      }
-    });
+    sortedOperations.sort(Utils.operationComparator());
     if (operation.getEndTS() > endTS) {
       endTS = operation.getEndTS();
+    }
+    if (operation.getStartTS() < startTS) {
+      startTS = operation.getStartTS();
     }
   }
 
@@ -57,14 +53,14 @@ public class OperationGroup {
     HashSet<RecordValue> result = new HashSet<>();
 
     // generate all possible permutations to replay
-    List<List<Operation>> allPermutations = allPermutations(sortedOperations);
+    List<List<KeyOperation>> allPermutations = allPermutations(sortedOperations);
 
     outerLoop:
-    for (List<Operation> chosenOrder : allPermutations) {
+    for (List<KeyOperation> chosenOrder : allPermutations) {
       Evaluation latestEvaluation = new Evaluation();
       latestEvaluation.setRecordValue(fromValue);
 
-      for (Operation operation : chosenOrder) {
+      for (KeyOperation operation : chosenOrder) {
         Evaluation evaluation = operation.verifyAndReplay(latestEvaluation.getRecordValue());
         latestEvaluation = evaluation;
         if (!evaluation.getErrors().isEmpty()) {
@@ -81,7 +77,7 @@ public class OperationGroup {
     return result;
   }
 
-  private List<List<Operation>> allPermutations(List<Operation> sortedOperations) {
+  private List<List<KeyOperation>> allPermutations(List<KeyOperation> sortedOperations) {
     if (sortedOperations.size() == 1) {
       return Collections.singletonList(sortedOperations);
     }
@@ -89,18 +85,18 @@ public class OperationGroup {
     return generatePermutations(new ArrayList<>(sortedOperations));
   }
 
-  private List<List<Operation>> generatePermutations(List<Operation> original) {
+  private List<List<KeyOperation>> generatePermutations(List<KeyOperation> original) {
     if (original.isEmpty()) {
-      List<List<Operation>> result = new ArrayList<>();
+      List<List<KeyOperation>> result = new ArrayList<>();
       result.add(new ArrayList<>());
       return result;
     }
-    Operation firstElement = original.remove(0);
-    List<List<Operation>> returnValue = new ArrayList<>();
-    List<List<Operation>> permutations = generatePermutations(original);
-    for (List<Operation> smallerPermutated : permutations) {
+    KeyOperation firstElement = original.remove(0);
+    List<List<KeyOperation>> returnValue = new ArrayList<>();
+    List<List<KeyOperation>> permutations = generatePermutations(original);
+    for (List<KeyOperation> smallerPermutated : permutations) {
       for (int i = 0; i <= smallerPermutated.size(); i++) {
-        List<Operation> temp = new ArrayList<>(smallerPermutated);
+        List<KeyOperation> temp = new ArrayList<>(smallerPermutated);
         temp.add(i, firstElement);
         returnValue.add(temp);
       }
@@ -114,6 +110,10 @@ public class OperationGroup {
 
   long endTS() {
     return endTS;
+  }
+
+  long startTS() {
+    return startTS;
   }
 
   @Override

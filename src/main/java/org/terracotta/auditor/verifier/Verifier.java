@@ -80,13 +80,14 @@ public class Verifier {
             }
           }
 
-          if ((lineCount % 1000) == 0) {
+          if ((lineCount % 25000) == 0) {
             LOGGER.debug("Processed {}", lineCount);
           }
         }
       }
 
       // finished file parsing, process what remains in the timeline
+      LOGGER.debug("finished file parsing, process what remains in the timeline");
       while (!timeline.isEmpty()) {
         try {
           timeline.step();

@@ -15,33 +15,23 @@
  */
 package org.terracotta.auditor.verifier;
 
-public abstract class Operation {
+public abstract class KeyOperation extends Operation {
 
-  private final String name;
-  private final long startTS;
-  private final long endTS;
-  private final String result;
+  private final String key;
 
-  protected Operation(String name, long startTS, long endTS, String result) {
-    this.name = name;
-    this.startTS = startTS;
-    this.endTS = endTS;
-    this.result = result;
+  protected KeyOperation(String name, long startTS, long endTS, String key, String result) {
+    super(name, startTS, endTS, result);
+    this.key = key;
   }
 
-  public String getName() {
-    return name;
+  public String getKey() {
+    return key;
   }
 
-  public long getStartTS() {
-    return startTS;
-  }
+  public abstract Evaluation verifyAndReplay(RecordValue fromValue);
 
-  public long getEndTS() {
-    return endTS;
-  }
-
-  public String getResult() {
-    return result;
+  @Override
+  public String toString() {
+    return getClass().getSimpleName() + "@" + key + " startTs=" + getStartTS() + " endsTS=" + getEndTS() + " result=" + getResult();
   }
 }
