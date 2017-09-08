@@ -159,7 +159,7 @@ public class SorHistory {
         Interval interval = intervalSetEntry.getKey();
         Set<RecordValue> values = intervalSetEntry.getValue();
 
-        if (interval.endTs > ts) {
+        if (interval.endTs >= ts) {
           break;
         }
 
