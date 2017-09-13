@@ -91,7 +91,7 @@ public class GlobalTimeline {
 
       NonKeyOperation nonKeyOperation = nonKeyOperations.remove(0);
       if (nonKeyOperations.size() % 1000 == 0) {
-        LOGGER.debug("1000 less, left : " + nonKeyOperations.size() + " - " + sorHistory.averages());
+        LOGGER.debug("nonKeyOperations left : " + nonKeyOperations.size() + " - " + sorHistory.averages());
       }
       String error = nonKeyOperation.verifyAndReplay(sorHistory);
       size--;
@@ -125,11 +125,11 @@ public class GlobalTimeline {
     try {
       StepResult step = bestTimeline.step(sorHistory.getHeadOf(bestTimeline.getKey()));
       size -= step.getStepSize();
-      sorHistory.add(bestTimeline.getKey(), step.getStartTs(), step.getEndTs(), step.getPossibleValues());
+      sorHistory.add(bestTimeline.getKey(), step.getStartTs(), step.getEndTs(), step.getPossibleValues(), step.getIntermediateValues());
     } catch (VerificationException ve) {
       StepResult step = ve.getStepResult();
       size -= step.getStepSize();
-      sorHistory.add(bestTimeline.getKey(), step.getStartTs(), step.getEndTs(), step.getPossibleValues());
+      sorHistory.add(bestTimeline.getKey(), step.getStartTs(), step.getEndTs(), step.getPossibleValues(), step.getIntermediateValues());
       throw ve;
     }
   }

@@ -80,9 +80,11 @@ public class KeyTimeline {
     KeyOperationGroup operationGroup = sortedOperationGroups.remove(0);
 
     Set<RecordValue> allNewPossibleValues = new HashSet<>();
+    Set<RecordValue> allIntermediateValues = new HashSet<>();
     for (RecordValue possibleValue : possibleValuesAtHead) {
-      Set<RecordValue> newPossibleValues = operationGroup.replay(possibleValue);
-      allNewPossibleValues.addAll(newPossibleValues);
+      Values values = operationGroup.replay(possibleValue);
+      allNewPossibleValues.addAll(values.getCommittedValues());
+      allIntermediateValues.addAll(values.getIntermediateValues());
     }
     String error = null;
     if (allNewPossibleValues.isEmpty()) {
@@ -93,7 +95,7 @@ public class KeyTimeline {
 
     activateNotBeforeCheck = true;
     notBeforeTs = operationGroup.endTS();
-    StepResult stepResult = new StepResult(operationGroup.startTS(), operationGroup.endTS(), allNewPossibleValues, operationGroup.size());
+    StepResult stepResult = new StepResult(operationGroup.startTS(), operationGroup.endTS(), allNewPossibleValues, operationGroup.size(), allIntermediateValues);
     if (error != null) {
       throw new VerificationException(error, stepResult);
     }

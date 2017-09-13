@@ -201,6 +201,36 @@ public class VerifierTest {
   }
 
   @Test
+  public void nonKeyOperationWithOverlappingCancellingOperations() throws Exception {
+    String journalContents =
+            "1;2;Add;369;true\n" +
+            "3;4;Get;369;Optional[LazyVersionedRecord{records=[LazySingleRecord{key=369, timestamp=SystemTimeReference{systemTimeMillis=1504876210710}, msn=-9223372036854311915, cells=[LazyCell[definition=CellDefinition[name='rnd' type='Type<Integer>'] value='-1769147478']]}]}]\n" +
+            "5;7;Update;369;true\n" +
+            "6;8;Delete;369;true\n" +
+            "5;9;Find20;[930, 995, 965, 741, 998, 326, 614, 10, 587, 525, 78, 623, 464, 113, 977, 369, 498, 755, 723, 823];[LazyVersionedRecord{records=[LazySingleRecord{key=369, timestamp=SystemTimeReference{systemTimeMillis=1504876210816}, msn=-9223372036854311349, cells=[LazyCell[definition=CellDefinition[name='rnd' type='Type<Integer>'] value='-470853418']]}]}]\n";
+
+    Verifier verifier = new Verifier(new StringReader(journalContents), 10, Operations.parser());
+
+    List<String> errors = verifier.verify();
+    assertThat(errors, is(empty()));
+  }
+
+  @Test
+  public void nonKeyOperationWithOverlappingAdditiveOperations() throws Exception {
+    String journalContents =
+            "385247837;385255579;Add;116;true\n" +
+            "408249980;408253429;Get;116;Optional[LazyVersionedRecord{records=[LazySingleRecord{key=116, timestamp=SystemTimeReference{systemTimeMillis=1504876173072}, msn=-9223372036854517198, cells=[LazyCell[definition=CellDefinition[name='rnd' type='Type<Integer>'] value='-1203235139']]}]}]\n" +
+            "475470537;475764371;Delete;116;true\n" +
+            "475718997;475793485;Add;116;true\n" +
+            "471153194;478300726;Find20;[131, 196, 612, 4, 774, 230, 650, 971, 235, 844, 178, 788, 116, 601, 890, 731, 540, 990, 222, 255];[LazyVersionedRecord{records=[LazySingleRecord{key=116, timestamp=SystemTimeReference{systemTimeMillis=1504876173162}, msn=-9223372036854516740, cells=[LazyCell[definition=CellDefinition[name='rnd' type='Type<Integer>'] value='-49089532']]}]}]\n";
+
+    Verifier verifier = new Verifier(new StringReader(journalContents), 10, Operations.parser());
+
+    List<String> errors = verifier.verify();
+    assertThat(errors, is(empty()));
+  }
+
+  @Test
   @Ignore
   public void integrity() throws Exception {
     try (InputStream is = getClass().getClassLoader().getResourceAsStream("nonPersistent-journal.txt")) {

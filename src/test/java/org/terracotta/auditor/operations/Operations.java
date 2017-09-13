@@ -44,6 +44,8 @@ public class Operations {
           return new Update(startTS, endTS, key, result);
         case "Count":
           return new Count(startTS, endTS, result);
+        case "Find20":
+          return new Find20(startTS, endTS, key, result);
         default:
           throw new UnsupportedOperationException("Unsupported operation : " + name);
       }
