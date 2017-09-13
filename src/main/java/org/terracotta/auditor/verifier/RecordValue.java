@@ -15,6 +15,8 @@
  */
 package org.terracotta.auditor.verifier;
 
+import java.util.Objects;
+
 public class RecordValue {
   public static final RecordValue ABSENT = new RecordValue(null, true, false);
   public static final RecordValue UNKNOWN_PRESENT = new RecordValue(null, false, true);
@@ -54,5 +56,33 @@ public class RecordValue {
       return "unknown";
     }
     return result;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+
+    if (!(o instanceof RecordValue)) {
+      return false;
+    }
+
+    RecordValue other = (RecordValue) o;
+
+    if (this == ABSENT) {
+      return other == ABSENT;
+    }
+
+    if (this == UNKNOWN_PRESENT) {
+      return other == UNKNOWN_PRESENT;
+    }
+
+    return Objects.equals(result, other.result);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(absent, unknown, result);
   }
 }
