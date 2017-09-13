@@ -49,8 +49,9 @@ public class KeyOperationGroup {
     }
   }
 
-  Set<RecordValue> replay(RecordValue fromValue) {
-    HashSet<RecordValue> result = new HashSet<>();
+  Values replay(RecordValue fromValue) {
+    HashSet<RecordValue> committedValues = new HashSet<>();
+    HashSet<RecordValue> intermediateValues = new HashSet<>();
 
     // generate all possible permutations to replay
     List<List<KeyOperation>> allPermutations = allPermutations(sortedOperations);
@@ -60,6 +61,7 @@ public class KeyOperationGroup {
       Evaluation latestEvaluation = new Evaluation();
       latestEvaluation.setRecordValue(fromValue);
 
+      HashSet<RecordValue> currentIntermediateValues = new HashSet<>();
       for (KeyOperation operation : chosenOrder) {
         Evaluation evaluation = operation.verifyAndReplay(latestEvaluation.getRecordValue());
         latestEvaluation = evaluation;
@@ -67,14 +69,16 @@ public class KeyOperationGroup {
           // illegal path, compute next one
           continue outerLoop;
         }
+        currentIntermediateValues.add(evaluation.getRecordValue());
       }
 
       // valid path, remember result
-      result.add(latestEvaluation.getRecordValue());
+      intermediateValues.addAll(currentIntermediateValues);
+      committedValues.add(latestEvaluation.getRecordValue());
     }
 
-    // result can be empty if this group makes no sense with the given fromValue
-    return result;
+    // committedValues can be empty if this group makes no sense with the given fromValue
+    return new Values(committedValues, intermediateValues);
   }
 
   private List<List<KeyOperation>> allPermutations(List<KeyOperation> sortedOperations) {

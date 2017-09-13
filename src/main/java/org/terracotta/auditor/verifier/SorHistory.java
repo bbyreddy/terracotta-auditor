@@ -28,37 +28,51 @@ import java.util.TreeMap;
  */
 public class SorHistory {
 
-  private final Map<String, SortedMap<Interval, Set<RecordValue>>> history = new HashMap<>();
+  private int committedMax = 0;
+  private int intermediateMax = 0;
+  private long atCount = 0;
+  private long atSum = 0;
+  private long overlappingCount = 0;
+  private long overlappingSum = 0;
 
-  public void add(String key, long beforeTs, long afterTs, Set<RecordValue> values) {
-    SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap = history.get(key);
+  private final Map<String, SortedMap<Interval, Values>> history = new HashMap<>();
+
+  public void add(String key, long beforeTs, long afterTs, Set<RecordValue> committedValues, Set<RecordValue> intermediateValues) {
+    SortedMap<Interval, Values> intervalSetSortedMap = history.get(key);
     if (intervalSetSortedMap == null) {
       Interval interval = new Interval(beforeTs, afterTs);
-      SortedMap<Interval, Set<RecordValue>> map = new TreeMap<>();
-      map.put(interval, values);
+      SortedMap<Interval, Values> map = new TreeMap<>();
+      map.put(interval, new Values(committedValues, intermediateValues));
       history.put(key, map);
     } else {
       Interval interval = new Interval(beforeTs, afterTs);
-      intervalSetSortedMap.put(interval, values);
+      intervalSetSortedMap.put(interval, new Values(committedValues, intermediateValues));
+    }
+
+    if (committedValues.size() > committedMax) {
+      committedMax = committedValues.size();
+    }
+    if (intermediateValues.size() > intermediateMax) {
+      intermediateMax = intermediateValues.size();
     }
   }
 
   public Set<RecordValue> getHeadOf(String key) {
-    SortedMap<Interval, Set<RecordValue>> intervalListSortedMap = history.get(key);
+    SortedMap<Interval, Values> intervalListSortedMap = history.get(key);
     if (intervalListSortedMap == null) {
       return Collections.singleton(RecordValue.ABSENT);
     }
     Interval lastKey = intervalListSortedMap.lastKey();
-    return intervalListSortedMap.get(lastKey);
+    return intervalListSortedMap.get(lastKey).getCommittedValues();
   }
 
   public Map<String, Set<RecordValue>> getHeads() {
     Map<String, Set<RecordValue>> result = new HashMap<>();
 
     for (String key : history.keySet()) {
-      SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap = history.get(key);
+      SortedMap<Interval, Values> intervalSetSortedMap = history.get(key);
       Interval interval = intervalSetSortedMap.lastKey();
-      Set<RecordValue> recordValues = intervalSetSortedMap.get(interval);
+      Set<RecordValue> recordValues = intervalSetSortedMap.get(interval).getCommittedValues();
       result.put(key, recordValues);
     }
 
@@ -66,14 +80,14 @@ public class SorHistory {
   }
 
   public void deleteUntil(long ts) {
-    for (Map.Entry<String, SortedMap<Interval, Set<RecordValue>>> stringSortedMapEntry : history.entrySet()) {
-      SortedMap<Interval, Set<RecordValue>> value = stringSortedMapEntry.getValue();
+    for (Map.Entry<String, SortedMap<Interval, Values>> stringSortedMapEntry : history.entrySet()) {
+      SortedMap<Interval, Values> value = stringSortedMapEntry.getValue();
 
-      Iterator<Map.Entry<Interval, Set<RecordValue>>> iterator = value.entrySet().iterator();
+      Iterator<Map.Entry<Interval, Values>> iterator = value.entrySet().iterator();
       // delete everything before the arg TS, but the last value before that TS, hence save the last deleted one to re-add it
-      Map.Entry<Interval, Set<RecordValue>> lastEntry = null;
+      Map.Entry<Interval, Values> lastEntry = null;
       while (iterator.hasNext()) {
-        Map.Entry<Interval, Set<RecordValue>> next = iterator.next();
+        Map.Entry<Interval, Values> next = iterator.next();
         Interval interval = next.getKey();
         if (interval.endTs < ts && iterator.hasNext()) {
           lastEntry = next;
@@ -88,76 +102,18 @@ public class SorHistory {
     }
   }
 
-  private long atCount = 0;
-  private long atSum = 0;
-
-  private long overlappingCount = 0;
-  private long overlappingSum = 0;
-
-  public Map[] getAtAndOverlapping(long startTs, long afterTs) {
-    Map<String, Set<RecordValue>> at = new HashMap<>();
-    Map<String, Set<RecordValue>> overlapping = new HashMap<>();
-
-    for (Map.Entry<String, SortedMap<Interval, Set<RecordValue>>> stringSortedMapEntry : history.entrySet()) {
-      String key = stringSortedMapEntry.getKey();
-      SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap = stringSortedMapEntry.getValue();
-
-      // at
-      int counter = 0;
-      for (Map.Entry<Interval, Set<RecordValue>> intervalSetEntry : intervalSetSortedMap.entrySet()) {
-        Interval interval = intervalSetEntry.getKey();
-        Set<RecordValue> values = intervalSetEntry.getValue();
-
-        if (interval.endTs > startTs) {
-          break;
-        }
-
-        at.put(key, values);
-        counter++;
-      }
-      atCount++;
-      atSum += counter;
-
-      // overlapping
-      counter = 0;
-      for (Map.Entry<Interval, Set<RecordValue>> intervalSetEntry : intervalSetSortedMap.entrySet()) {
-        Interval interval = intervalSetEntry.getKey();
-        Set<RecordValue> value = intervalSetEntry.getValue();
-
-        if (interval.endTs < startTs) {
-          continue;
-        }
-        if (interval.startTs > afterTs) {
-          break;
-        }
-
-        if (overlapping.putIfAbsent(key, value) != null) {
-          Set<RecordValue> recordValues = overlapping.get(key);
-          recordValues.addAll(value);
-        }
-        counter++;
-      }
-      overlappingCount++;
-      overlappingSum += counter;
-    }
-
-    at.entrySet().removeIf(next -> next.getValue().size() == 1 && next.getValue().iterator().next().isAbsent());
-
-    return new Map[] {at, overlapping};
-  }
-
   public Map<String, Set<RecordValue>> getAt(long ts) {
     Map<String, Set<RecordValue>> at = new HashMap<>();
 
-    for (Map.Entry<String, SortedMap<Interval, Set<RecordValue>>> stringSortedMapEntry : history.entrySet()) {
+    for (Map.Entry<String, SortedMap<Interval, Values>> stringSortedMapEntry : history.entrySet()) {
       String key = stringSortedMapEntry.getKey();
-      SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap = stringSortedMapEntry.getValue();
+      SortedMap<Interval, Values> intervalSetSortedMap = stringSortedMapEntry.getValue();
 
       int counter = 0;
-      for (Map.Entry<Interval, Set<RecordValue>> intervalSetEntry : intervalSetSortedMap.entrySet()) {
+      for (Map.Entry<Interval, Values> intervalSetEntry : intervalSetSortedMap.entrySet()) {
         counter++;
         Interval interval = intervalSetEntry.getKey();
-        Set<RecordValue> values = intervalSetEntry.getValue();
+        Set<RecordValue> values = intervalSetEntry.getValue().getCommittedValues();
 
         if (interval.endTs >= ts) {
           break;
@@ -177,15 +133,15 @@ public class SorHistory {
   public Map<String, Set<RecordValue>> getEverythingOverlapping(long startTs, long afterTs) {
     Map<String, Set<RecordValue>> overlapping = new HashMap<>();
 
-    for (Map.Entry<String, SortedMap<Interval, Set<RecordValue>>> stringSortedMapEntry : history.entrySet()) {
+    for (Map.Entry<String, SortedMap<Interval, Values>> stringSortedMapEntry : history.entrySet()) {
       String key = stringSortedMapEntry.getKey();
-      SortedMap<Interval, Set<RecordValue>> intervalSetSortedMap = stringSortedMapEntry.getValue();
+      SortedMap<Interval, Values> intervalSetSortedMap = stringSortedMapEntry.getValue();
 
       int counter = 0;
-      for (Map.Entry<Interval, Set<RecordValue>> intervalSetEntry : intervalSetSortedMap.entrySet()) {
+      for (Map.Entry<Interval, Values> intervalSetEntry : intervalSetSortedMap.entrySet()) {
         counter++;
         Interval interval = intervalSetEntry.getKey();
-        Set<RecordValue> value = intervalSetEntry.getValue();
+        Set<RecordValue> value = intervalSetEntry.getValue().getIntermediateValues();
 
         if (interval.endTs < startTs) {
           continue;
@@ -206,6 +162,13 @@ public class SorHistory {
     return overlapping;
   }
 
+  public String averages() {
+    return "at avg: " + avg(atCount, atSum) + " overlapping avg: " + avg(overlappingCount, overlappingSum) + " committed max: " + committedMax + " intermediate max: " + intermediateMax;
+  }
+
+  private static float avg(long count, long sum) {
+    return count == 0 ? Float.NaN : (float)sum / count;
+  }
 
   static class Interval implements Comparable<Interval> {
     private long startTs;
@@ -234,10 +197,6 @@ public class SorHistory {
     public int compareTo(Interval other) {
       return Long.compare(endTs, other.endTs);
     }
-  }
-
-  public String averages() {
-    return "at avg: " + (atCount == 0 ? "N/A" : (float)atSum / atCount) + " overlapping avg: " + (overlappingCount == 0 ? "N/A" : (float)overlappingSum / overlappingCount);
   }
 
 }

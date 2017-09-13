@@ -20,35 +20,17 @@ import java.util.Set;
 /**
  * @author Ludovic Orban
  */
-public class StepResult {
-  private final long startTs;
-  private final long endTs;
-  private final Set<RecordValue> possibleValues;
-  private final int stepSize;
+public class Values {
+  private final Set<RecordValue> committedValues;
   private final Set<RecordValue> intermediateValues;
 
-  public StepResult(long startTs, long endTs, Set<RecordValue> possibleValues, int stepSize, Set<RecordValue> intermediateValues) {
-    this.startTs = startTs;
-    this.endTs = endTs;
-    this.possibleValues = possibleValues;
-    this.stepSize = stepSize;
+  Values(Set<RecordValue> committedValues, Set<RecordValue> intermediateValues) {
+    this.committedValues = committedValues;
     this.intermediateValues = intermediateValues;
   }
 
-  public long getStartTs() {
-    return startTs;
-  }
-
-  public long getEndTs() {
-    return endTs;
-  }
-
-  public Set<RecordValue> getPossibleValues() {
-    return possibleValues;
-  }
-
-  public int getStepSize() {
-    return stepSize;
+  public Set<RecordValue> getCommittedValues() {
+    return committedValues;
   }
 
   public Set<RecordValue> getIntermediateValues() {
