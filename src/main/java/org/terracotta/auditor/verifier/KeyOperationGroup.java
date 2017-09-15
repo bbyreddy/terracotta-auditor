@@ -16,9 +16,6 @@
 package org.terracotta.auditor.verifier;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -50,62 +47,7 @@ public class KeyOperationGroup {
   }
 
   Values replay(RecordValue fromValue) {
-    HashSet<RecordValue> committedValues = new HashSet<>();
-    HashSet<RecordValue> intermediateValues = new HashSet<>();
-
-    // generate all possible permutations to replay
-    List<List<KeyOperation>> allPermutations = allPermutations(sortedOperations);
-
-    outerLoop:
-    for (List<KeyOperation> chosenOrder : allPermutations) {
-      Evaluation latestEvaluation = new Evaluation();
-      latestEvaluation.setRecordValue(fromValue);
-
-      HashSet<RecordValue> currentIntermediateValues = new HashSet<>();
-      for (KeyOperation operation : chosenOrder) {
-        Evaluation evaluation = operation.verifyAndReplay(latestEvaluation.getRecordValue());
-        latestEvaluation = evaluation;
-        if (!evaluation.getErrors().isEmpty()) {
-          // illegal path, compute next one
-          continue outerLoop;
-        }
-        currentIntermediateValues.add(evaluation.getRecordValue());
-      }
-
-      // valid path, remember result
-      intermediateValues.addAll(currentIntermediateValues);
-      committedValues.add(latestEvaluation.getRecordValue());
-    }
-
-    // committedValues can be empty if this group makes no sense with the given fromValue
-    return new Values(committedValues, intermediateValues);
-  }
-
-  private List<List<KeyOperation>> allPermutations(List<KeyOperation> sortedOperations) {
-    if (sortedOperations.size() == 1) {
-      return Collections.singletonList(sortedOperations);
-    }
-    //TODO: the permutation list could be reduced as not all timestamps of a group do overlap
-    return generatePermutations(new ArrayList<>(sortedOperations));
-  }
-
-  private List<List<KeyOperation>> generatePermutations(List<KeyOperation> original) {
-    if (original.isEmpty()) {
-      List<List<KeyOperation>> result = new ArrayList<>();
-      result.add(new ArrayList<>());
-      return result;
-    }
-    KeyOperation firstElement = original.remove(0);
-    List<List<KeyOperation>> returnValue = new ArrayList<>();
-    List<List<KeyOperation>> permutations = generatePermutations(original);
-    for (List<KeyOperation> smallerPermutated : permutations) {
-      for (int i = 0; i <= smallerPermutated.size(); i++) {
-        List<KeyOperation> temp = new ArrayList<>(smallerPermutated);
-        temp.add(i, firstElement);
-        returnValue.add(temp);
-      }
-    }
-    return returnValue;
+    return new OrderDeterminer(sortedOperations).findPossibleOutcomes(fromValue);
   }
 
   int size() {

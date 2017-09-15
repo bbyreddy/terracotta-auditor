@@ -1,0 +1,637 @@
+/*
+ * Copyright Terracotta, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.terracotta.auditor.verifier;
+
+import org.junit.Test;
+import org.terracotta.auditor.operations.Add;
+import org.terracotta.auditor.operations.Delete;
+import org.terracotta.auditor.operations.Get;
+import org.terracotta.auditor.operations.Update;
+
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Set;
+
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.empty;
+
+public class OrderDeterminerTest {
+  @Test
+  public void oneValidStepGivesSingleResult() {
+    Collection<KeyOperation> keyOperations = Collections.singletonList(
+            new Update(1, 2, "key", "true")
+    );
+
+    Values results = new OrderDeterminer(keyOperations).findPossibleOutcomes(RecordValue.UNKNOWN_PRESENT);
+
+    assertThat(results.getCommittedValues(), containsInAnyOrder(RecordValue.UNKNOWN_PRESENT));
+    assertThat(results.getIntermediateValues(), containsInAnyOrder(RecordValue.UNKNOWN_PRESENT));
+  }
+
+  @Test
+  public void oneInvalidStepGivesNoResult() {
+    Collection<KeyOperation> keyOperations = Collections.singletonList(
+            new Update(1, 2, "key", "true")
+    );
+
+    Values results = new OrderDeterminer(keyOperations).findPossibleOutcomes(RecordValue.ABSENT);
+
+    assertThat(results.getCommittedValues(), empty());
+    assertThat(results.getIntermediateValues(), empty());
+  }
+
+  @Test
+  public void multipleStepsLogicallySequentialGivesSingleResult() {
+    Collection<KeyOperation> keyOperations = Arrays.asList(
+            new Add(1, 2, "key", "true"),
+            new Update(1, 2, "key", "true")
+    );
+
+    Values results = new OrderDeterminer(keyOperations).findPossibleOutcomes(RecordValue.ABSENT);
+
+    assertThat(results.getCommittedValues(), containsInAnyOrder(RecordValue.UNKNOWN_PRESENT));
+    assertThat(results.getIntermediateValues(), containsInAnyOrder(RecordValue.UNKNOWN_PRESENT));
+  }
+
+  @Test
+  public void multipleStepsNotLogicallySequentialGivesMultipleResult() {
+    Collection<KeyOperation> keyOperations = Arrays.asList(
+            new Add(1, 2, "key", "true"),
+            new Get(1, 2, "key", "A"),
+            new Get(1, 2, "key", "A"),
+            new Update(1, 2, "key", "true"),
+            new Get(1, 2, "key", "B"),
+            new Get(1, 2, "key", "B")
+    );
+
+    Values results = new OrderDeterminer(keyOperations).findPossibleOutcomes(RecordValue.ABSENT);
+
+    assertThat(results.getCommittedValues(), containsInAnyOrder(new RecordValue("A"), new RecordValue("B")));
+    assertThat(results.getIntermediateValues(), containsInAnyOrder(RecordValue.UNKNOWN_PRESENT, new RecordValue("A"), new RecordValue("B")));
+  }
+
+  @Test
+  public void timeOrderedMultipleStepsGivesSingleResult() {
+    Collection<KeyOperation> keyOperations = Arrays.asList(
+            new Add(1, 2, "key", "true"),
+            new Get(2, 3, "key", "A"),
+            new Get(3, 4, "key", "A"),
+            new Update(3, 4, "key", "true"),
+            new Get(3, 4, "key", "B"),
+            new Get(4, 5, "key", "B")
+    );
+
+    Values results = new OrderDeterminer(keyOperations).findPossibleOutcomes(RecordValue.ABSENT);
+
+    assertThat(results.getCommittedValues(), containsInAnyOrder(new RecordValue("B")));
+    assertThat(results.getIntermediateValues(), containsInAnyOrder(RecordValue.UNKNOWN_PRESENT, new RecordValue("A"), new RecordValue("B")));
+  }
+
+  @Test
+  public void lotsOfData() {
+    Collection<KeyOperation> keyOperations = Arrays.asList(
+            new Get(100058674959112L, 100058768307834L, "key", "0"),
+            new Get(100058674972240L, 100058774804677L, "key", "0"),
+            new Add(100058674976615L, 100058767277295L, "key", "true"),
+            new Get(100058675060488L, 100058768318409L, "key", "0"),
+            new Get(100058772607944L, 100058790831633L, "key", "0"),
+            new Get(100058772763291L, 100058776793915L, "key", "0"),
+            new Get(100058772917908L, 100058776765107L, "key", "0"),
+            new Add(100058774864117L, 100058791169311L, "key", "false"),
+            new Get(100058776842051L, 100058777028029L, "key", "0"),
+            new Get(100058777062308L, 100058777093669L, "key", "0"),
+            new Get(100058777117372L, 100058777149098L, "key", "0"),
+            new Update(100058777174259L, 100058805030531L, "key", "false"),
+            new Get(100058777189575L, 100058777227136L, "key", "0"),
+            new Get(100058777255944L, 100058777282200L, "key", "0"),
+            new Get(100058777306268L, 100058777330700L, "key", "0"),
+            new Get(100058777354403L, 100058777378471L, "key", "0"),
+            new Get(100058777393057L, 100058777420407L, "key", "0"),
+            new Get(100058777443746L, 100058777466355L, "key", "0"),
+            new Get(100058777487141L, 100058777509750L, "key", "0"),
+            new Get(100058777531630L, 100058777554968L, "key", "0"),
+            new Get(100058777577212L, 100058777600916L, "key", "0"),
+            new Get(100058777624254L, 100058777646498L, "key", "0"),
+            new Get(100058777669108L, 100058777712503L, "key", "0"),
+            new Get(100058777740217L, 100058777767931L, "key", "0"),
+            new Get(100058777791999L, 100058777841958L, "key", "0"),
+            new Get(100058777865296L, 100058777888635L, "key", "0"),
+            new Delete(100058777909421L, 100058793305509L, "key", "true"),
+            new Get(100058790897637L, 100058800113045L, "key", "Optional.empty"),
+            new Delete(100058791206142L, 100058793678195L, "key", "false"),
+            new Get(100058793352551L, 100058800378885L, "key", "Optional.empty"),
+            new Get(100058793715391L, 100058800504694L, "key", "Optional.empty"),
+            new Get(100058800165557L, 100058804519638L, "key", "Optional.empty"),
+            new Get(100058800412798L, 100058804494476L, "key", "Optional.empty"),
+            new Get(100058800532773L, 100058804481713L, "key", "Optional.empty"),
+            new Get(100058804544070L, 100058806535497L, "key", "Optional.empty"),
+            new Get(100058804544070L, 100058806639790L, "key", "Optional.empty"),
+            new Get(100058804544799L, 100058806519816L, "key", "Optional.empty"),
+            new Get(100058805102370L, 100058808614078L, "key", "Optional.empty"),
+            new Get(100058806560659L, 100058808763955L, "key", "Optional.empty"),
+            new Get(100058806561388L, 100058808292445L, "key", "Optional.empty"),
+            new Get(100058807637145L, 100058809007915L, "key", "Optional.empty"),
+            new Get(100058808364284L, 100058808418983L, "key", "Optional.empty"),
+            new Get(100058808445239L, 100058808472953L, "key", "Optional.empty"),
+            new Get(100058808639240L, 100058812081662L, "key", "Optional.empty"),
+            new Get(100058808786564L, 100058812576146L, "key", "Optional.empty"),
+            new Get(100058809033076L, 100058812497014L, "key", "Optional.empty"),
+            new Get(100058809672696L, 100058812441950L, "key", "Optional.empty"),
+            new Get(100058812123234L, 100058813689463L, "key", "Optional.empty"),
+            new Get(100058812473675L, 100058813690192L, "key", "Optional.empty"),
+            new Get(100058812514518L, 100058813663207L, "key", "Optional.empty"),
+            new Get(100058812601308L, 100058813654820L, "key", "Optional.empty")
+    );
+
+    Values results = new OrderDeterminer(keyOperations).findPossibleOutcomes(RecordValue.ABSENT);
+
+    assertThat(results.getCommittedValues(), containsInAnyOrder(RecordValue.ABSENT));
+    assertThat(results.getIntermediateValues(), containsInAnyOrder(RecordValue.ABSENT, RecordValue.UNKNOWN_PRESENT, new RecordValue("0")));
+  }
+
+  @Test
+  public void reallyLotsOfData() {
+    Collection<KeyOperation> keyOperations = Arrays.asList(
+            new Get(100302534336157L, 100302578690165L, "key", "Optional.empty"),
+            new Delete(100302534440816L, 100302572055844L, "key", "false"),
+            new Get(100302534899562L, 100302585349283L, "key", "Optional.empty"),
+            new Get(100302535043604L, 100302585946237L, "key", "Optional.empty"),
+            new Get(100302578427972L, 100302578627808L, "key", "Optional.empty"),
+            new Get(100302578666462L, 100302578704387L, "key", "Optional.empty"),
+            new Delete(100302578716786L, 100302586448743L, "key", "false"),
+            new Get(100302578726996L, 100302578756898L, "key", "Optional.empty"),
+            new Get(100302578778414L, 100302578802117L, "key", "Optional.empty"),
+            new Add(100302578823632L, 100302662094152L, "key", "true"),
+            new Get(100302585401430L, 100302589702635L, "key", "Optional.empty"),
+            new Get(100302585987444L, 100302589876944L, "key", "Optional.empty"),
+            new Get(100302586490315L, 100302662046016L, "key", "Optional.empty"),
+            new Get(100302589753323L, 100302662042005L, "key", "Optional.empty"),
+            new Add(100302589905023L, 100302662065708L, "key", "false"),
+            new Get(100302662085035L, 100302682424136L, "key", "0"),
+            new Get(100302662095975L, 100302668276290L, "key", "0"),
+            new Get(100302662123690L, 100302668415227L, "key", "0"),
+            new Get(100302662455169L, 100302668410851L, "key", "0"),
+            new Get(100302668579326L, 100302668643506L, "key", "0"),
+            new Get(100302668580055L, 100302668632566L, "key", "0"),
+            new Get(100302668608134L, 100302668649341L, "key", "0"),
+            new Delete(100302668660281L, 100302688467338L, "key", "true"),
+            new Add(100302668668668L, 100302682402985L, "key", "false"),
+            new Get(100302668669398L, 100302668693465L, "key", "0"),
+            new Get(100302668716074L, 100302668739778L, "key", "0"),
+            new Get(100302668764575L, 100302668788278L, "key", "0"),
+            new Get(100302668813804L, 100302668837872L, "key", "0"),
+            new Get(100302668852459L, 100302668873609L, "key", "0"),
+            new Update(100302668908252L, 100302697905920L, "key", "true"),
+            new Delete(100302682452580L, 100302689224379L, "key", "false"),
+            new Add(100302682459508L, 100302695005752L, "key", "true"),
+            new Get(100302688511097L, 100302697898627L, "key", "0"),
+            new Add(100302689254646L, 100302698516002L, "key", "false"),
+            new Add(100302695051335L, 100302698307050L, "key", "false"),
+            new Get(100302697947856L, 100302702510525L, "key", "299232987"),
+            new Get(100302697969371L, 100302704894694L, "key", "Optional.empty"),
+            new Delete(100302698335493L, 100302703976471L, "key", "true"),
+            new Get(100302698542987L, 100302704827960L, "key", "Optional.empty"),
+            new Update(100302702584187L, 100302705252793L, "key", "false"),
+            new Get(100302704055603L, 100302706163358L, "key", "Optional.empty"),
+            new Get(100302704867344L, 100302706318704L, "key", "Optional.empty"),
+            new Get(100302704921314L, 100302706188884L, "key", "Optional.empty"),
+            new Get(100302705273579L, 100302708461466L, "key", "Optional.empty"),
+            new Get(100302706206023L, 100302709795040L, "key", "Optional.empty"),
+            new Get(100302706208576L, 100302707371123L, "key", "Optional.empty"),
+            new Get(100302706340584L, 100302710607146L, "key", "Optional.empty"),
+            new Get(100302707428010L, 100302707487815L, "key", "Optional.empty"),
+            new Get(100302707510424L, 100302707533398L, "key", "Optional.empty"),
+            new Get(100302707544338L, 100302707565124L, "key", "Optional.empty"),
+            new Get(100302707582263L, 100302707602684L, "key", "Optional.empty"),
+            new Get(100302707619094L, 100302707639515L, "key", "Optional.empty"),
+            new Get(100302707656290L, 100302707678534L, "key", "Optional.empty"),
+            new Get(100302707696038L, 100302707717188L, "key", "Optional.empty"),
+            new Get(100302707735422L, 100302707757301L, "key", "Optional.empty"),
+            new Get(100302707778087L, 100302707801790L, "key", "Optional.empty"),
+            new Update(100302707819659L, 100302715957852L, "key", "false"),
+            new Get(100302708503403L, 100302715449876L, "key", "Optional.empty"),
+            new Get(100302709861045L, 100302715872885L, "key", "Optional.empty"),
+            new Delete(100302710658928L, 100302716253594L, "key", "false"),
+            new Get(100302715500928L, 100302719270819L, "key", "Optional.empty"),
+            new Update(100302715903882L, 100302719029047L, "key", "false"),
+            new Get(100302715987025L, 100302718703038L, "key", "Optional.empty"),
+            new Get(100302716281673L, 100302719644963L, "key", "Optional.empty"),
+            new Get(100302718745339L, 100302719577501L, "key", "Optional.empty"),
+            new Get(100302719062596L, 100302721308193L, "key", "Optional.empty"),
+            new Get(100302719300356L, 100302721704947L, "key", "Optional.empty"),
+            new Get(100302719596828L, 100302721980268L, "key", "Optional.empty"),
+            new Get(100302719682159L, 100302721302358L, "key", "Optional.empty"),
+            new Get(100302721349035L, 100302727531538L, "key", "Optional.empty"),
+            new Get(100302721448588L, 100302727519140L, "key", "Optional.empty"),
+            new Add(100302721731202L, 100302729612672L, "key", "true"),
+            new Get(100302722006159L, 100302727607024L, "key", "Optional.empty"),
+            new Get(100302727577486L, 100302730405815L, "key", "0"),
+            new Get(100302727577486L, 100302730423684L, "key", "0"),
+            new Get(100302727627809L, 100302730417120L, "key", "0"),
+            new Get(100302729657161L, 100302734483116L, "key", "0"),
+            new Get(100302730463432L, 100302734378458L, "key", "0"),
+            new Update(100302730488229L, 100302737311446L, "key", "true"),
+            new Update(100302730583042L, 100302736698811L, "key", "true"),
+            new Get(100302734429511L, 100302734475823L, "key", "0"),
+            new Get(100302734494786L, 100302738313541L, "key", "-966166527"),
+            new Get(100302734502444L, 100302738730716L, "key", "-966166527"),
+            new Get(100302736771744L, 100302742217992L, "key", "-966166527"),
+            new Get(100302737351559L, 100302741662609L, "key", "-966166527"),
+            new Delete(100302738363864L, 100302746379530L, "key", "true"),
+            new Get(100302738771558L, 100302740632800L, "key", "-966166527"),
+            new Get(100302740696251L, 100302740749857L, "key", "-966166527"),
+            new Get(100302740778665L, 100302740803827L, "key", "-966166527"),
+            new Get(100302740830812L, 100302740854880L, "key", "-966166527"),
+            new Get(100302740876760L, 100302741031742L, "key", "-966166527"),
+            new Get(100302741056903L, 100302741102486L, "key", "-966166527"),
+            new Get(100302741125095L, 100302741148434L, "key", "-966166527"),
+            new Get(100302741167761L, 100302741188912L, "key", "-966166527"),
+            new Get(100302741208239L, 100302741229754L, "key", "-966166527"),
+            new Get(100302741247987L, 100302741269502L, "key", "-966166527"),
+            new Get(100302741288465L, 100302741309615L, "key", "-966166527"),
+            new Get(100302741327848L, 100302741350093L, "key", "-966166527"),
+            new Get(100302741375984L, 100302741400781L, "key", "-966166527"),
+            new Get(100302741420473L, 100302741441623L, "key", "-966166527"),
+            new Get(100302741460586L, 100302741486112L, "key", "-966166527"),
+            new Get(100302741498875L, 100302741530966L, "key", "-966166527"),
+            new Get(100302741551022L, 100302741572902L, "key", "-966166527"),
+            new Get(100302741591865L, 100302741613744L, "key", "-966166527"),
+            new Add(100302741632342L, 100302750684746L, "key", "true"),
+            new Update(100302741695794L, 100302747338595L, "key", "false"),
+            new Get(100302742267586L, 100302742319368L, "key", "-966166527"),
+            new Get(100302742452470L, 100302751899075L, "key", "Optional.empty"),
+            new Get(100302746417091L, 100302752283795L, "key", "0"),
+            new Get(100302747372509L, 100302751624848L, "key", "0"),
+            new Get(100302750724130L, 100302754471411L, "key", "0"),
+            new Get(100302751667879L, 100302754971000L, "key", "0"),
+            new Get(100302752056975L, 100302754592114L, "key", "0"),
+            new Get(100302752319167L, 100302755400208L, "key", "0"),
+            new Get(100302754530486L, 100302754572058L, "key", "0"),
+            new Get(100302754596490L, 100302754616547L, "key", "0"),
+            new Update(100302754619099L, 100302763206558L, "key", "true"),
+            new Get(100302754634051L, 100302754655566L, "key", "0"),
+            new Get(100302754672340L, 100302754692032L, "key", "0"),
+            new Get(100302754702607L, 100302754721935L, "key", "0"),
+            new Get(100302754738344L, 100302754761683L, "key", "0"),
+            new Get(100302754780281L, 100302754798879L, "key", "0"),
+            new Delete(100302754814924L, 100302761626836L, "key", "true"),
+            new Get(100302754992515L, 100302755018771L, "key", "0"),
+            new Get(100302755036639L, 100302755059248L, "key", "0"),
+            new Get(100302755072011L, 100302755093162L, "key", "0"),
+            new Get(100302755111760L, 100302755132546L, "key", "0"),
+            new Get(100302755152967L, 100302755178858L, "key", "0"),
+            new Get(100302755196726L, 100302755219700L, "key", "0"),
+            new Get(100302755239392L, 100302755259084L, "key", "0"),
+            new Get(100302755276588L, 100302755294821L, "key", "0"),
+            new Get(100302755428652L, 100302755451991L, "key", "0"),
+            new Get(100302755472047L, 100302755492104L, "key", "0"),
+            new Get(100302755513983L, 100302755531487L, "key", "0"),
+            new Get(100302755554096L, 100302755571236L, "key", "0"),
+            new Get(100302755589469L, 100302755606973L, "key", "0"),
+            new Get(100302755623382L, 100302755642710L, "key", "0"),
+            new Update(100302755658755L, 100302762504581L, "key", "false"),
+            new Update(100302756624748L, 100302762887112L, "key", "false"),
+            new Get(100302761664031L, 100302765718359L, "key", "Optional.empty"),
+            new Get(100302762536671L, 100302765258883L, "key", "Optional.empty"),
+            new Get(100302762916286L, 100302765521441L, "key", "Optional.empty"),
+            new Update(100302763232084L, 100302765227887L, "key", "false"),
+            new Get(100302765264718L, 100302768524808L, "key", "Optional.empty"),
+            new Update(100302765282951L, 100302767861850L, "key", "false"),
+            new Get(100302765534569L, 100302768646241L, "key", "Optional.empty"),
+            new Get(100302765741697L, 100302768795389L, "key", "Optional.empty"),
+            new Get(100302767888106L, 100302770214659L, "key", "Optional.empty"),
+            new Add(100302768555440L, 100302774798477L, "key", "true"),
+            new Get(100302768673956L, 100302770399908L, "key", "Optional.empty"),
+            new Update(100302768828208L, 100302775535462L, "key", "true"),
+            new Get(100302770256595L, 100302775910701L, "key", "0"),
+            new Add(100302770425799L, 100302775849073L, "key", "false"),
+            new Get(100302774836038L, 100302778515856L, "key", "0"),
+            new Get(100302775569376L, 100302780662994L, "key", "0"),
+            new Update(100302775905231L, 100302780377827L, "key", "true"),
+            new Get(100302775948626L, 100302780381839L, "key", "0"),
+            new Get(100302778561439L, 100302780829645L, "key", "0"),
+            new Get(100302780422316L, 100302782534811L, "key", "0"),
+            new Get(100302780422681L, 100302782290122L, "key", "0"),
+            new Get(100302780838762L, 100302782220836L, "key", "0"),
+            new Get(100302780858454L, 100302782220836L, "key", "0"),
+            new Get(100302782271160L, 100302782418848L, "key", "0"),
+            new Get(100302782403168L, 100302782434893L, "key", "0"),
+            new Get(100302782439634L, 100302782462243L, "key", "0"),
+            new Add(100302782452397L, 100302784249823L, "key", "false"),
+            new Get(100302782481570L, 100302782502721L, "key", "0"),
+            new Get(100302782518766L, 100302782535541L, "key", "0"),
+            new Update(100302782545751L, 100302787578106L, "key", "true"),
+            new Get(100302782579300L, 100302782603368L, "key", "0"),
+            new Get(100302782619413L, 100302782638376L, "key", "0"),
+            new Update(100302782655150L, 100302789646477L, "key", "true"),
+            new Get(100302782732094L, 100302782754339L, "key", "0"),
+            new Get(100302782771478L, 100302782790440L, "key", "0"),
+            new Get(100302782878324L, 100302782903121L, "key", "0"),
+            new Get(100302782923542L, 100302782942140L, "key", "0"),
+            new Update(100302782960009L, 100302791411447L, "key", "true"),
+            new Get(100302784285195L, 100302791831540L, "key", "0"),
+            new Get(100302787675836L, 100302795920875L, "key", "-275905596"),
+            new Get(100302789681120L, 100302794315262L, "key", "-275905596"),
+            new Get(100302791448278L, 100302797646462L, "key", "-275905596"),
+            new Get(100302791934739L, 100302799272131L, "key", "-275905596"),
+            new Get(100302794361939L, 100302798270401L, "key", "-275905596"),
+            new Get(100302795979221L, 100302798599327L, "key", "-275905596"),
+            new Get(100302797689492L, 100302797735440L, "key", "-275905596"),
+            new Get(100302797754767L, 100302797782846L, "key", "-275905596"),
+            new Get(100302797803632L, 100302797821865L, "key", "-275905596"),
+            new Get(100302797836087L, 100302797851767L, "key", "-275905596"),
+            new Get(100302797864895L, 100302797880211L, "key", "-275905596"),
+            new Get(100302797893704L, 100302797909749L, "key", "-275905596"),
+            new Get(100302797925429L, 100302797942204L, "key", "-275905596"),
+            new Get(100302797957520L, 100302797975753L, "key", "-275905596"),
+            new Update(100302797991798L, 100302806723298L, "key", "true"),
+            new Get(100302798300668L, 100302798326195L, "key", "-275905596"),
+            new Get(100302798343334L, 100302798361932L, "key", "-275905596"),
+            new Get(100302798377247L, 100302798396939L, "key", "-275905596"),
+            new Delete(100302798412984L, 100302808128346L, "key", "true"),
+            new Get(100302798625583L, 100302798658038L, "key", "-275905596"),
+            new Get(100302798676271L, 100302798696693L, "key", "-275905596"),
+            new Get(100302798717478L, 100302798736441L, "key", "-275905596"),
+            new Delete(100302798752121L, 100302808490822L, "key", "false"),
+            new Update(100302799327196L, 100302808357720L, "key", "false"),
+            new Delete(100302806770340L, 100302810016938L, "key", "false"),
+            new Get(100302808168459L, 100302810487354L, "key", "Optional.empty"),
+            new Get(100302808397103L, 100302810175567L, "key", "Optional.empty"),
+            new Get(100302808510878L, 100302810208022L, "key", "Optional.empty"),
+            new Get(100302810217138L, 100302812623552L, "key", "Optional.empty"),
+            new Update(100302810226620L, 100302812212576L, "key", "false"),
+            new Get(100302810492095L, 100302812744256L, "key", "Optional.empty"),
+            new Delete(100302810504128L, 100302812173193L, "key", "false"),
+            new Update(100302812206742L, 100302814225518L, "key", "false"),
+            new Get(100302812231174L, 100302814278394L, "key", "Optional.empty"),
+            new Get(100302812665488L, 100302814424260L, "key", "Optional.empty"),
+            new Get(100302812767959L, 100302814278759L, "key", "Optional.empty"),
+            new Get(100302814275113L, 100302816202359L, "key", "Optional.empty"),
+            new Get(100302814300639L, 100302816224238L, "key", "Optional.empty"),
+            new Update(100302814331635L, 100302816196524L, "key", "false"),
+            new Delete(100302814439576L, 100302816196524L, "key", "false"),
+            new Get(100302816218768L, 100302818078187L, "key", "Optional.empty"),
+            new Update(100302816240648L, 100302817984833L, "key", "false"),
+            new Update(100302816260705L, 100302818270365L, "key", "false"),
+            new Get(100302816451424L, 100302818092044L, "key", "Optional.empty"),
+            new Delete(100302818116112L, 100302820724185L, "key", "false"),
+            new Get(100302818116112L, 100302820735124L, "key", "Optional.empty"),
+            new Get(100302818161695L, 100302820484601L, "key", "Optional.empty"),
+            new Get(100302818286774L, 100302820249393L, "key", "Optional.empty"),
+            new Get(100302820415315L, 100302820472567L, "key", "Optional.empty"),
+            new Delete(100302820490071L, 100302822233891L, "key", "false"),
+            new Get(100302820503928L, 100302822614235L, "key", "Optional.empty"),
+            new Get(100302820742418L, 100302822237173L, "key", "Optional.empty"),
+            new Get(100302820750440L, 100302822419505L, "key", "Optional.empty"),
+            new Get(100302822264158L, 100302824546586L, "key", "Optional.empty"),
+            new Get(100302822287861L, 100302824249386L, "key", "Optional.empty"),
+            new Get(100302822436644L, 100302824976524L, "key", "Optional.empty"),
+            new Get(100302822629915L, 100302824609673L, "key", "Optional.empty"),
+            new Get(100302824290592L, 100302826133966L, "key", "Optional.empty"),
+            new Get(100302824576489L, 100302826192677L, "key", "Optional.empty"),
+            new Get(100302824626812L, 100302826450858L, "key", "Optional.empty"),
+            new Get(100302825020649L, 100302826085101L, "key", "Optional.empty"),
+            new Get(100302826117921L, 100302827940144L, "key", "Optional.empty"),
+            new Get(100302826153658L, 100302827986091L, "key", "Optional.empty"),
+            new Get(100302826470915L, 100302827793549L, "key", "Optional.empty"),
+            new Get(100302826579585L, 100302827783703L, "key", "Optional.empty"),
+            new Get(100302827925557L, 100302831941960L, "key", "Optional.empty"),
+            new Update(100302827930662L, 100302832457229L, "key", "true"),
+            new Get(100302827953636L, 100302832185919L, "key", "Optional.empty"),
+            new Add(100302827997031L, 100302831917527L, "key", "true"),
+            new Get(100302831954723L, 100302834253196L, "key", "1606112035"),
+            new Get(100302831954723L, 100302834312272L, "key", "1606112035"),
+            new Get(100302832216187L, 100302834468348L, "key", "1606112035"),
+            new Add(100302832479838L, 100302834061019L, "key", "false"),
+            new Get(100302834094932L, 100302837262399L, "key", "1606112035"),
+            new Get(100302834277993L, 100302836678937L, "key", "1606112035"),
+            new Get(100302834329411L, 100302836426955L, "key", "1606112035"),
+            new Update(100302834490227L, 100302841547193L, "key", "true"),
+            new Get(100302836503899L, 100302836565527L, "key", "1606112035"),
+            new Get(100302836601993L, 100302836626061L, "key", "1606112035"),
+            new Get(100302836645753L, 100302836665080L, "key", "1606112035"),
+            new Get(100302836679302L, 100302836696806L, "key", "1606112035"),
+            new Get(100302836701546L, 100302836728896L, "key", "1606112035"),
+            new Get(100302836711757L, 100302836729990L, "key", "1606112035"),
+            new Get(100302836743118L, 100302836758434L, "key", "1606112035"),
+            new Get(100302836744941L, 100302836763174L, "key", "1606112035"),
+            new Get(100302836771562L, 100302836786148L, "key", "1606112035"),
+            new Get(100302836781408L, 100302836800735L, "key", "1606112035"),
+            new Get(100302836814957L, 100302836831366L, "key", "1606112035"),
+            new Add(100302836845224L, 100302840881318L, "key", "false"),
+            new Update(100302837297042L, 100302844212883L, "key", "true"),
+            new Add(100302837517298L, 100302844110048L, "key", "false"),
+            new Get(100302840973213L, 100302844607448L, "key", "-957843424"),
+            new Get(100302841579284L, 100302845370324L, "key", "-957843424"),
+            new Get(100302844246796L, 100302846620026L, "key", "-957843424"),
+            new Get(100302844562595L, 100302846532871L, "key", "-957843424"),
+            new Get(100302844630058L, 100302846250257L, "key", "-957843424"),
+            new Get(100302845431223L, 100302846198475L, "key", "-957843424"),
+            new Get(100302846238223L, 100302846284535L, "key", "-957843424"),
+            new Get(100302846273231L, 100302846304227L, "key", "-957843424"),
+            new Get(100302846316626L, 100302846368043L, "key", "-957843424"),
+            new Get(100302846341058L, 100302846400863L, "key", "-957843424"),
+            new Get(100302846405604L, 100302846528495L, "key", "-957843424"),
+            new Update(100302846418367L, 100302854994520L, "key", "true"),
+            new Get(100302846542717L, 100302846561680L, "key", "-957843424"),
+            new Get(100302846549646L, 100302846569338L, "key", "-957843424"),
+            new Get(100302846574078L, 100302846590123L, "key", "-957843424"),
+            new Get(100302846582465L, 100302846864350L, "key", "-957843424"),
+            new Get(100302846636436L, 100302846657221L, "key", "-957843424"),
+            new Delete(100302846669620L, 100302855258172L, "key", "true"),
+            new Get(100302846896076L, 100302846917226L, "key", "-957843424"),
+            new Get(100302846933272L, 100302846947858L, "key", "-957843424"),
+            new Add(100302846959892L, 100302855304484L, "key", "true"),
+            new Get(100302847097005L, 100302847123626L, "key", "-957843424"),
+            new Get(100302847140765L, 100302847157540L, "key", "-957843424"),
+            new Get(100302847169938L, 100302847184889L, "key", "-957843424"),
+            new Get(100302847197288L, 100302847215886L, "key", "-957843424"),
+            new Get(100302847228284L, 100302847242871L, "key", "-957843424"),
+            new Get(100302847254540L, 100302847266939L, "key", "-957843424"),
+            new Get(100302847277514L, 100302847304864L, "key", "-957843424"),
+            new Get(100302847316168L, 100302847331849L, "key", "-957843424"),
+            new Get(100302847344247L, 100302847357010L, "key", "-957843424"),
+            new Get(100302847367950L, 100302847380714L, "key", "-957843424"),
+            new Get(100302847391289L, 100302847404417L, "key", "-957843424"),
+            new Get(100302847416086L, 100302847429943L, "key", "-957843424"),
+            new Get(100302847441977L, 100302847456564L, "key", "-957843424"),
+            new Delete(100302847465680L, 100302855712907L, "key", "true"),
+            new Update(100302855030257L, 100302857692665L, "key", "false"),
+            new Get(100302855282240L, 100302857695582L, "key", "Optional.empty"),
+            new Get(100302855327458L, 100302858011381L, "key", "Optional.empty"),
+            new Get(100302855741351L, 100302857719285L, "key", "Optional.empty"),
+            new Get(100302857723297L, 100302860522453L, "key", "Optional.empty"),
+            new Get(100302857733507L, 100302859758118L, "key", "Optional.empty"),
+            new Get(100302857760492L, 100302859734050L, "key", "Optional.empty"),
+            new Get(100302858022685L, 100302860141015L, "key", "Optional.empty"),
+            new Get(100302859756295L, 100302862588636L, "key", "Optional.empty"),
+            new Get(100302859777810L, 100302862375307L, "key", "Optional.empty"),
+            new Get(100302860165083L, 100302862399375L, "key", "Optional.empty"),
+            new Update(100302860537039L, 100302862375307L, "key", "false"),
+            new Get(100302862405210L, 100302864036349L, "key", "Optional.empty"),
+            new Get(100302862412868L, 100302864599754L, "key", "Optional.empty"),
+            new Get(100302862603587L, 100302863986755L, "key", "Optional.empty"),
+            new Get(100302862757475L, 100302863969251L, "key", "Optional.empty"),
+            new Get(100302863999153L, 100302864599389L, "key", "Optional.empty"),
+            new Get(100302863999518L, 100302864059688L, "key", "Optional.empty"),
+            new Get(100302864048018L, 100302864066252L, "key", "Optional.empty"),
+            new Get(100302864070628L, 100302864087402L, "key", "Optional.empty"),
+            new Get(100302864073909L, 100302864086673L, "key", "Optional.empty"),
+            new Get(100302864095425L, 100302864108188L, "key", "Optional.empty"),
+            new Get(100302864116575L, 100302864129338L, "key", "Optional.empty"),
+            new Get(100302864137726L, 100302864151218L, "key", "Optional.empty"),
+            new Get(100302864151218L, 100302864170181L, "key", "Optional.empty"),
+            new Get(100302864162887L, 100302864176380L, "key", "Optional.empty"),
+            new Get(100302864180391L, 100302864193519L, "key", "Optional.empty"),
+            new Get(100302864183673L, 100302864193519L, "key", "Optional.empty"),
+            new Update(100302864201542L, 100302866626918L, "key", "false"),
+            new Get(100302864230350L, 100302864245666L, "key", "Optional.empty"),
+            new Get(100302864254783L, 100302864268275L, "key", "Optional.empty"),
+            new Get(100302864277392L, 100302864291978L, "key", "Optional.empty"),
+            new Update(100302864301095L, 100302866591910L, "key", "false"),
+            new Update(100302864614705L, 100302867056491L, "key", "false"),
+            new Get(100302864632938L, 100302866946363L, "key", "Optional.empty"),
+            new Get(100302866622907L, 100302868670856L, "key", "Optional.empty"),
+            new Get(100302866639316L, 100302868454246L, "key", "Optional.empty"),
+            new Get(100302867058679L, 100302868476491L, "key", "Optional.empty"),
+            new Get(100302867071078L, 100302868798488L, "key", "Optional.empty"),
+            new Get(100302868494724L, 100302869897584L, "key", "Optional.empty"),
+            new Get(100302868495818L, 100302870048919L, "key", "Optional.empty"),
+            new Get(100302868687266L, 100302869942073L, "key", "Optional.empty"),
+            new Get(100302868815263L, 100302869874610L, "key", "Optional.empty"),
+            new Get(100302869906700L, 100302873205445L, "key", "Optional.empty"),
+            new Delete(100302869909253L, 100302871535652L, "key", "false"),
+            new Get(100302869953377L, 100302869991302L, "key", "Optional.empty"),
+            new Get(100302870003336L, 100302870019381L, "key", "Optional.empty"),
+            new Get(100302870025945L, 100302870038344L, "key", "Optional.empty"),
+            new Get(100302870047825L, 100302872769673L, "key", "Optional.empty"),
+            new Delete(100302870063141L, 100302872545040L, "key", "false"),
+            new Update(100302871573941L, 100302873421691L, "key", "false"),
+            new Get(100302872577860L, 100302874182014L, "key", "Optional.empty"),
+            new Get(100302872791188L, 100302874595542L, "key", "Optional.empty"),
+            new Get(100302873225137L, 100302874399718L, "key", "Optional.empty"),
+            new Add(100302873443571L, 100302878414662L, "key", "true"),
+            new Get(100302874211552L, 100302878431436L, "key", "0"),
+            new Update(100302874421233L, 100302879390866L, "key", "true"),
+            new Get(100302874614505L, 100302878496711L, "key", "0"),
+            new Get(100302878448211L, 100302880135508L, "key", "31797339"),
+            new Get(100302878451858L, 100302880148272L, "key", "31797339"),
+            new Get(100302878511662L, 100302880135144L, "key", "31797339"),
+            new Update(100302879422591L, 100302883118090L, "key", "true"),
+            new Get(100302880301430L, 100302883178989L, "key", "956128045"),
+            new Get(100302880445472L, 100302883433159L, "key", "956128045"),
+            new Get(100302880538461L, 100302883549122L, "key", "956128045"),
+            new Add(100302883150545L, 100302885789979L, "key", "false"),
+            new Get(100302883211809L, 100302885941679L, "key", "956128045"),
+            new Get(100302883453581L, 100302886251278L, "key", "956128045"),
+            new Get(100302883568450L, 100302886153184L, "key", "956128045"),
+            new Get(100302885895002L, 100302888008226L, "key", "956128045"),
+            new Get(100302885970852L, 100302887728529L, "key", "956128045"),
+            new Get(100302886171781L, 100302887713943L, "key", "956128045"),
+            new Get(100302886268417L, 100302887713943L, "key", "956128045"),
+            new Get(100302887872207L, 100302887915966L, "key", "956128045"),
+            new Get(100302887887887L, 100302887916331L, "key", "956128045"),
+            new Get(100302887926542L, 100302887941858L, "key", "956128045"),
+            new Get(100302887932012L, 100302887948057L, "key", "956128045"),
+            new Get(100302887954985L, 100302887969207L, "key", "956128045"),
+            new Get(100302887961185L, 100302887975771L, "key", "956128045"),
+            new Get(100302887981241L, 100302887994369L, "key", "956128045"),
+            new Update(100302887988534L, 100302895029455L, "key", "true"),
+            new Update(100302888006403L, 100302897554384L, "key", "true"),
+            new Get(100302888026095L, 100302888044328L, "key", "956128045"),
+            new Get(100302888057456L, 100302888072042L, "key", "956128045"),
+            new Get(100302888083347L, 100302888095746L, "key", "956128045"),
+            new Get(100302888108509L, 100302888120178L, "key", "956128045"),
+            new Get(100302888127836L, 100302888139505L, "key", "956128045"),
+            new Update(100302888151904L, 100302899137388L, "key", "true"),
+            new Get(100302888247081L, 100302888265679L, "key", "956128045"),
+            new Get(100302888284277L, 100302888299228L, "key", "956128045"),
+            new Get(100302888309074L, 100302888321837L, "key", "956128045"),
+            new Get(100302888337517L, 100302888350645L, "key", "956128045"),
+            new Update(100302888367055L, 100302898696146L, "key", "true"),
+            new Get(100302895090719L, 100302899528672L, "key", "678343560"),
+            new Get(100302897628047L, 100302903370036L, "key", "678343560"),
+            new Update(100302898729330L, 100302903383893L, "key", "true"),
+            new Update(100302899162915L, 100302904414797L, "key", "true"),
+            new Add(100302899568420L, 100302904284612L, "key", "false"),
+            new Delete(100302903424371L, 100302907604507L, "key", "true"),
+            new Get(100302903746369L, 100302907609248L, "key", "0"),
+            new Update(100302904310138L, 100302907606331L, "key", "false"),
+            new Get(100302904446158L, 100302907988498L, "key", "Optional.empty"),
+            new Get(100302907633316L, 100302908996063L, "key", "Optional.empty"),
+            new Get(100302907644985L, 100302908996063L, "key", "Optional.empty"),
+            new Get(100302907659572L, 100302909021225L, "key", "Optional.empty"),
+            new Get(100302908007461L, 100302909020495L, "key", "Optional.empty")
+    );
+
+    Values results = new OrderDeterminer(keyOperations).findPossibleOutcomes(RecordValue.ABSENT);
+
+    assertThat(results.getCommittedValues(), containsInAnyOrder(RecordValue.ABSENT));
+  }
+
+  @Test
+  public void multipleOutputValues() {
+    Collection<KeyOperation> keyOperations = Arrays.asList(
+            new Get(100302878448211L, 100302880135508L, "key", "31797339"),
+            new Get(100302878451858L, 100302880148272L, "key", "31797339"),
+            new Get(100302878511662L, 100302880135144L, "key", "31797339"),
+            new Update(100302879422591L, 100302883118090L, "key", "true"),
+            new Get(100302880301430L, 100302883178989L, "key", "956128045"),
+            new Get(100302880445472L, 100302883433159L, "key", "956128045"),
+            new Get(100302880538461L, 100302883549122L, "key", "956128045"),
+            new Add(100302883150545L, 100302885789979L, "key", "false"),
+            new Get(100302883211809L, 100302885941679L, "key", "956128045"),
+            new Get(100302883453581L, 100302886251278L, "key", "956128045"),
+            new Get(100302883568450L, 100302886153184L, "key", "956128045"),
+            new Get(100302885895002L, 100302888008226L, "key", "956128045"),
+            new Get(100302885970852L, 100302887728529L, "key", "956128045"),
+            new Get(100302886171781L, 100302887713943L, "key", "956128045"),
+            new Get(100302886268417L, 100302887713943L, "key", "956128045"),
+            new Get(100302887872207L, 100302887915966L, "key", "956128045"),
+            new Get(100302887887887L, 100302887916331L, "key", "956128045"),
+            new Get(100302887926542L, 100302887941858L, "key", "956128045"),
+            new Get(100302887932012L, 100302887948057L, "key", "956128045"),
+            new Get(100302887954985L, 100302887969207L, "key", "956128045"),
+            new Get(100302887961185L, 100302887975771L, "key", "956128045"),
+            new Get(100302887981241L, 100302887994369L, "key", "956128045"),
+            new Update(100302887988534L, 100302895029455L, "key", "true"),
+            new Update(100302888006403L, 100302897554384L, "key", "true"),
+            new Get(100302888026095L, 100302888044328L, "key", "956128045"),
+            new Get(100302888057456L, 100302888072042L, "key", "956128045"),
+            new Get(100302888083347L, 100302888095746L, "key", "956128045"),
+            new Get(100302888108509L, 100302888120178L, "key", "956128045"),
+            new Get(100302888127836L, 100302888139505L, "key", "956128045"),
+            new Update(100302888151904L, 100302899137388L, "key", "true"),
+            new Get(100302888247081L, 100302888265679L, "key", "956128045"),
+            new Get(100302888284277L, 100302888299228L, "key", "956128045"),
+            new Get(100302888309074L, 100302888321837L, "key", "956128045"),
+            new Get(100302888337517L, 100302888350645L, "key", "956128045"),
+            new Update(100302888367055L, 100302898696146L, "key", "true"),
+            new Get(100302895090719L, 100302899528672L, "key", "678343560"),
+            new Get(100302897628047L, 100302903370036L, "key", "678343560"),
+            new Update(100302898729330L, 100302903383893L, "key", "true"),
+            new Update(100302899162915L, 100302904414797L, "key", "true"),
+            new Add(100302899568420L, 100302904284612L, "key", "false"),
+            new Get(100302903746369L, 100302907609248L, "key", "0")
+    );
+
+    Values results = new OrderDeterminer(keyOperations).findPossibleOutcomes( new RecordValue("31797339"));
+
+    assertThat(results.getCommittedValues(), containsInAnyOrder(RecordValue.UNKNOWN_PRESENT, new RecordValue("0")));
+  }
+}
