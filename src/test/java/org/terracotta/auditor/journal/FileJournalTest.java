@@ -15,25 +15,27 @@
  */
 package org.terracotta.auditor.journal;
 
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+import com.tc.test.TCExtension;
+import com.tc.test.TempDirectoryHelper;
 
 import java.io.File;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
-import static org.junit.Assert.assertThat;
 
+@ExtendWith(TCExtension.class)
 public class FileJournalTest {
-  @Rule
-  public TemporaryFolder temporaryFolder = new TemporaryFolder();
+  private TempDirectoryHelper tempDirectoryHelper;
 
   @Test
   public void writesToFile() throws Exception {
-    File file = temporaryFolder.newFile();
+    File file = tempDirectoryHelper.getFile(this.getClass().getSimpleName() + "_writeToFile");
     try (Journal journal = new FileJournal(file)) {
       journal.log(1, 2, "OP1", "KEY1", "RESULT1");
       journal.log(3, 4, "OP2", "KEY2", "RESULT2");

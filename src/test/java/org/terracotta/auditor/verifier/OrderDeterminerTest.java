@@ -15,7 +15,7 @@
  */
 package org.terracotta.auditor.verifier;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.terracotta.auditor.operations.Add;
 import org.terracotta.auditor.operations.Delete;
 import org.terracotta.auditor.operations.Get;
@@ -24,7 +24,6 @@ import org.terracotta.auditor.operations.Update;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Set;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;

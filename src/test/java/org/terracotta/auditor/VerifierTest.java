@@ -15,8 +15,8 @@
  */
 package org.terracotta.auditor;
 
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.terracotta.auditor.operations.Operations;
 import org.terracotta.auditor.verifier.RecordValue;
 import org.terracotta.auditor.verifier.Verifier;
@@ -29,9 +29,9 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
 
 /**
  * @author Ludovic Orban
@@ -231,7 +231,7 @@ public class VerifierTest {
   }
 
   @Test
-  @Ignore
+  @Disabled
   public void integrity() throws Exception {
     try (InputStream is = getClass().getClassLoader().getResourceAsStream("nonPersistent-journal.txt")) {
       Verifier verifier = new Verifier(new InputStreamReader(is), 1_000_000, Operations.parser());
